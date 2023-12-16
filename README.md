@@ -6,4 +6,4 @@
 > -Base de datos en la carpeta "BD", modificar los archivos "dbconnection.php" en la carpeta raiz y en la carpeta "admin".
 
 >[!TIP]
-Accede al sistema de manera online [aca](https://sistema-de-tickets-demo.000webhostapp.com/)
+Accede al sistema de manera online [acá](https://sistema-de-tickets-demo.000webhostapp.com/)
