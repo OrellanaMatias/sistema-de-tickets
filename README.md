@@ -55,45 +55,6 @@ Un sistema completo para la gestión de tickets de soporte técnico, desarrollad
    - Backend API: http://localhost:3000
    - PHPMyAdmin: http://localhost:8080
 
-### Instalación Manual
-
-#### Backend
-
-1. Ir al directorio backend:
-   ```bash
-   cd backend
-   ```
-
-2. Instalar dependencias:
-   ```bash
-   npm install
-   ```
-
-3. Configurar variables de entorno:
-   - Copiar `.env.example` a `.env`
-   - Configurar la conexión a la base de datos
-
-4. Iniciar el servidor:
-   ```bash
-   npm run dev
-   ```
-
-#### Frontend
-
-1. Ir al directorio frontend:
-   ```bash
-   cd frontend
-   ```
-
-2. Instalar dependencias:
-   ```bash
-   npm install
-   ```
-
-3. Iniciar el servidor de desarrollo:
-   ```bash
-   npm run dev
-   ```
 
 ## Estructura del Proyecto
 
