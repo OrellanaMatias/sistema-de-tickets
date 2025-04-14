@@ -97,15 +97,6 @@ El sistema se inicializa con los siguientes usuarios predeterminados:
   - Email: usuario@tickets.com
   - Contraseña: usuario123
 
-## Contribución
-
-Las contribuciones son bienvenidas. Por favor, sigue estos pasos:
-
-1. Haz fork del repositorio
-2. Crea una rama para tu funcionalidad (`git checkout -b feature/nueva-funcionalidad`)
-3. Realiza tus cambios y commit (`git commit -am 'Añadir nueva funcionalidad'`)
-4. Sube los cambios (`git push origin feature/nueva-funcionalidad`)
-5. Crea un Pull Request
 
 ## Licencia
 
