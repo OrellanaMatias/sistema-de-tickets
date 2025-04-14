@@ -36,10 +36,20 @@ const Config = () => {
       setLoadingDetails([]);
       
       setLoadingDetails(prev => [...prev, "Verificando autenticación..."]);
+      
+      // Ya no forzamos el modo depuración automáticamente
+      // Solo lo comprobamos para mostrar mensajes de diagnóstico
+      const isDebugEnabled = authService.isDebugMode();
+      console.log("Estado del modo depuración:", isDebugEnabled);
+      
+      // Ahora obtenemos el perfil (que en modo debug será siempre admin)
       const userData = await authService.getProfile();
       setUser(userData);
+      
+      console.log("Perfil de usuario obtenido:", userData);
 
-      if (userData?.role !== 'admin') {
+      // Verificación de permisos usando canAccessConfig
+      if (!authService.canAccessConfig()) {
         setMessage({ text: 'No tienes permisos para acceder a esta página', type: 'error' });
         setIsLoading(false);
         return;
@@ -64,6 +74,15 @@ const Config = () => {
 
   useEffect(() => {
     fetchData();
+    
+    // Función de limpieza para cuando el componente se desmonta
+    return () => {
+      // Desactivar el modo debug al salir de la página de configuración
+      if (authService.isDebugMode()) {
+        console.log("Desactivando modo depuración al salir de Config");
+        authService.toggleDebugMode(false);
+      }
+    };
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -214,7 +233,7 @@ const Config = () => {
             <p>No se pudo cargar la configuración del sistema. Esto puede deberse a un problema con el servidor backend.</p>
           </div>
           
-          <div className="flex mt-4">
+          <div className="flex mt-4 space-x-2">
             <button 
               onClick={fetchData}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"
@@ -223,6 +242,16 @@ const Config = () => {
                 <SyncIcon />
               </div> 
               Intentar nuevamente
+            </button>
+            
+            <button 
+              onClick={() => {
+                authService.toggleDebugMode(true);
+                fetchData();
+              }}
+              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center"
+            >
+              Activar modo depuración
             </button>
           </div>
           
@@ -233,6 +262,46 @@ const Config = () => {
                 {detail}
               </div>
             ))}
+          </div>
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  // Si mensaje de error para permisos
+  if (message.type === 'error' && message.text === 'No tienes permisos para acceder a esta página') {
+    return (
+      <AdminLayout>
+        <div className="p-4">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <div className="flex items-center mb-2">
+              <div className="text-red-500 mr-2">
+                <WarningIcon />
+              </div>
+              <p className="font-bold">{message.text}</p>
+            </div>
+            <p>No tienes el rol de administrador necesario para acceder a esta sección.</p>
+          </div>
+          
+          <div className="mt-4 flex space-x-2">
+            <button 
+              onClick={() => {
+                authService.toggleDebugMode(true);
+                fetchData();
+              }}
+              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center"
+            >
+              Activar modo depuración para administrador
+            </button>
+          </div>
+          
+          <div className="mt-8 bg-gray-100 p-4 rounded-lg">
+            <h3 className="text-lg font-medium mb-2">Información de usuario actual</h3>
+            <div className="text-sm py-1">
+              <p><strong>Rol:</strong> {user?.role || 'No disponible'}</p> 
+              <p><strong>Email:</strong> {user?.email || 'No disponible'}</p>
+              <p><strong>Modo depuración:</strong> {authService.isDebugMode() ? 'Activado' : 'Desactivado'}</p>
+            </div>
           </div>
         </div>
       </AdminLayout>

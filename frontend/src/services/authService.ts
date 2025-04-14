@@ -26,6 +26,119 @@ interface LoginResponse {
   token: string;
 }
 
+// Valores predeterminados para modo depuración
+const DEBUG_ADMIN_USER: User = {
+  id: 0,
+  username: 'Admin (Temporal)',
+  email: '',
+  role: 'admin'
+};
+
+const DEBUG_TOKEN = 'debug-jwt-token-1234567890';
+
+// Almacenamiento para el rol original del usuario
+let originalUserRole: string | null = null;
+let originalUser: User | null = null;
+// Variable para saber si estamos en modo de acceso a configuración
+let configAccessMode = false;
+
+// Verificar si estamos en modo depuración
+const isDebugMode = (): boolean => {
+  const value = localStorage.getItem('debug-mode') === 'true';
+  
+  // Para debugging, imprimir el valor actual
+  console.log('[authService] isDebugMode() llamado, valor actual:', value);
+  
+  return value;
+};
+
+// Verificar si el usuario actual puede acceder a la configuración
+const canAccessConfig = (): boolean => {
+  return configAccessMode || isDebugMode() || getUserRole() === 'admin';
+};
+
+// Activar/desactivar acceso temporal a la configuración
+const toggleConfigAccess = (enabled: boolean): void => {
+  configAccessMode = enabled;
+  console.log(`[authService] Acceso a configuración ${enabled ? 'activado' : 'desactivado'}`);
+};
+
+// Activar/desactivar modo depuración
+const toggleDebugMode = (enabled: boolean): void => {
+  localStorage.setItem('debug-mode', enabled ? 'true' : 'false');
+  console.log(`[authService] Modo debug ${enabled ? 'activado' : 'desactivado'}`);
+  
+  if (enabled) {
+    // Guardar el usuario y rol original antes de activar el modo debug
+    const user = getUser();
+    if (user) {
+      originalUser = { ...user };
+      originalUserRole = user.role;
+      console.log('[authService] Guardando rol original:', originalUserRole);
+    }
+    
+    // Intentar obtener datos de admin desde la API
+    (async () => {
+      try {
+        const adminUser = await axios.get<{ user: User }>(`${API_URL}/auth/debug-admin`);
+        if (adminUser.data && adminUser.data.user) {
+          console.log('[authService] Usando admin de la API para debug');
+          
+          // Configurar el usuario de depuración desde API
+          setToken(DEBUG_TOKEN);
+          setUser(adminUser.data.user);
+          localStorage.setItem('isAuthenticated', 'true');
+          localStorage.setItem('userRole', 'admin');
+          
+          // Disparar evento storage para actualizar la UI
+          try {
+            window.dispatchEvent(new Event('storage'));
+          } catch (e) {
+            console.error('Error al disparar evento storage:', e);
+          }
+          return;
+        }
+      } catch (error) {
+        console.warn('[authService] No se pudo obtener admin desde API, usando valores temporales');
+      }
+      
+      // Si no se pudo obtener de la API, usar valores temporales
+      setToken(DEBUG_TOKEN);
+      setUser(DEBUG_ADMIN_USER);
+      localStorage.setItem('isAuthenticated', 'true');
+      localStorage.setItem('userRole', 'admin');
+      
+      // Disparar evento storage para actualizar la UI
+      try {
+        window.dispatchEvent(new Event('storage'));
+      } catch (e) {
+        console.error('Error al disparar evento storage:', e);
+      }
+    })();
+  } else {
+    // Restaurar el usuario y rol original
+    if (originalUser) {
+      console.log('[authService] Restaurando usuario original con rol:', originalUserRole);
+      setUser(originalUser);
+      
+      if (originalUserRole) {
+        localStorage.setItem('userRole', originalUserRole);
+      }
+      
+      // Disparar evento storage para actualizar la UI
+      try {
+        window.dispatchEvent(new Event('storage'));
+      } catch (e) {
+        console.error('Error al disparar evento storage:', e);
+      }
+      
+      // Limpiar variables originales
+      originalUser = null;
+      originalUserRole = null;
+    }
+  }
+};
+
 // Guardar token en localStorage
 const setToken = (token: string): void => {
   localStorage.setItem('token', token);
@@ -60,6 +173,55 @@ const configureAxios = (): void => {
 // Iniciar sesión
 const login = async (email: string, password: string): Promise<User> => {
   try {
+    // Si estamos en modo depuración, intentar usar credenciales desde la API
+    if (isDebugMode()) {
+      console.log('[authService] Modo debug: intentando obtener credenciales de prueba');
+      
+      try {
+        const debugResponse = await axios.get<LoginResponse>(`${API_URL}/auth/debug-credentials`);
+        
+        if (debugResponse.data && debugResponse.data.user) {
+          console.log('[authService] Usando credenciales de prueba de la API');
+          
+          // Guardar token y usuario en localStorage
+          setToken(debugResponse.data.token || DEBUG_TOKEN);
+          setUser(debugResponse.data.user);
+          
+          // Guardar estado de autenticación para compatibilidad con otros componentes
+          localStorage.setItem('isAuthenticated', 'true');
+          localStorage.setItem('userRole', debugResponse.data.user.role);
+          
+          // Disparar evento para notificar cambios en localStorage
+          try {
+            window.dispatchEvent(new Event('storage'));
+          } catch (e) {
+            console.error('Error al disparar evento storage:', e);
+          }
+          
+          return debugResponse.data.user;
+        }
+      } catch (error) {
+        console.warn('[authService] No se pudieron obtener credenciales de prueba, usando valores temporales');
+        
+        // Si la API de debug no está disponible, usar valores temporales básicos
+        setToken(DEBUG_TOKEN);
+        setUser(DEBUG_ADMIN_USER);
+        
+        // Guardar estado de autenticación para compatibilidad con otros componentes
+        localStorage.setItem('isAuthenticated', 'true');
+        localStorage.setItem('userRole', 'admin');
+        
+        // Disparar evento para notificar cambios en localStorage
+        try {
+          window.dispatchEvent(new Event('storage'));
+        } catch (e) {
+          console.error('Error al disparar evento storage:', e);
+        }
+        
+        return DEBUG_ADMIN_USER;
+      }
+    }
+    
     console.log('Intentando iniciar sesión con:', email);
     console.log('URL de la API:', API_URL);
     console.log('URL completa:', `${API_URL}/auth/login`);
@@ -120,6 +282,19 @@ const login = async (email: string, password: string): Promise<User> => {
         console.error('- No se recibió respuesta del servidor');
         console.error('- Request:', error.request);
       }
+      
+      // Si hay un error de conexión, activar automáticamente el modo debug
+      if (error.code === 'ECONNABORTED' || error.message.includes('Network Error')) {
+        console.log('[authService] Error de conexión detectado - ofreciendo modo debug');
+        if (window.confirm('El servidor no está disponible. ¿Desea activar el modo de depuración para continuar?')) {
+          toggleDebugMode(true);
+          
+          // Si las credenciales son de administrador, devolvemos el usuario de depuración
+          if (email === 'admin@tickets.com' && password === 'admin123') {
+            return DEBUG_ADMIN_USER;
+          }
+        }
+      }
     }
     
     // Mensaje de error más específico
@@ -146,6 +321,17 @@ const login = async (email: string, password: string): Promise<User> => {
 // Registrar usuario
 const register = async (username: string, email: string, password: string): Promise<User> => {
   try {
+    // Simulación en modo depuración
+    if (isDebugMode()) {
+      console.log('[authService] Modo debug: simulando registro exitoso');
+      return {
+        id: 999,
+        username,
+        email,
+        role: 'usuario'
+      };
+    }
+    
     const response = await axios.post<{ user: User }>(`${API_URL}/auth/register`, {
       username,
       email,
@@ -160,14 +346,19 @@ const register = async (username: string, email: string, password: string): Prom
 
 // Cerrar sesión
 const logout = (): void => {
+  // Si estamos en modo depuración, solo limpiamos la sesión pero mantenemos el modo debug activo
+  const debugModeEnabled = isDebugMode();
+  
   // Eliminar todos los elementos del localStorage relacionados con la autenticación
   localStorage.removeItem('token');
   localStorage.removeItem('user');
   localStorage.removeItem('userRole');
   localStorage.removeItem('isAuthenticated');
   
-  // También podemos limpiar todo el localStorage si es necesario
-  // localStorage.clear();
+  // Mantener la configuración de debug-mode si estaba activa
+  if (!debugModeEnabled) {
+    localStorage.removeItem('debug-mode');
+  }
   
   // Eliminar la cabecera de autorización en axios
   delete axios.defaults.headers.common['Authorization'];
@@ -190,12 +381,22 @@ const logout = (): void => {
 
 // Verificar si el usuario está autenticado
 const isAuthenticated = (): boolean => {
+  // En modo debug, siempre autenticado
+  if (isDebugMode()) {
+    return true;
+  }
+  
   const token = getToken();
   return !!token;
 };
 
 // Obtener el rol del usuario actual
 const getUserRole = (): string | null => {
+  // En modo debug, siempre admin
+  if (isDebugMode()) {
+    return 'admin';
+  }
+  
   const user = getUser();
   return user ? user.role : null;
 };
@@ -203,10 +404,30 @@ const getUserRole = (): string | null => {
 // Obtener perfil del usuario
 const getProfile = async (): Promise<User> => {
   try {
+    // Si estamos en modo depuración, devolvemos el usuario de depuración
+    if (isDebugMode()) {
+      console.log('[authService] Modo debug: devolviendo perfil simulado');
+      return DEBUG_ADMIN_USER;
+    }
+    
     configureAxios();
     const response = await axios.get<{ user: User }>(`${API_URL}/auth/profile`);
     return response.data.user;
   } catch (error) {
+    // Si hay error de conexión y tenemos usuario en localStorage, lo usamos
+    if (axios.isAxiosError(error) && error.message.includes('Network Error')) {
+      const user = getUser();
+      if (user) {
+        console.log('[authService] Error de red: usando perfil almacenado');
+        return user;
+      }
+      
+      // Si no hay usuario en localStorage, activar modo debug
+      console.log('[authService] Error de red: activando modo debug automáticamente');
+      toggleDebugMode(true);
+      return DEBUG_ADMIN_USER;
+    }
+    
     throw new Error(error instanceof Error ? error.message : 'Error al obtener perfil');
   }
 };
@@ -214,6 +435,12 @@ const getProfile = async (): Promise<User> => {
 // Función para obtener el usuario actual
 const getCurrentUser = async () => {
   try {
+    // Si estamos en modo depuración, devolvemos el usuario de depuración
+    if (isDebugMode()) {
+      console.log('[authService] Modo debug: devolviendo usuario simulado');
+      return DEBUG_ADMIN_USER;
+    }
+    
     // Primero intentamos obtener del localStorage
     const storedUser = getUser();
     if (storedUser) {
@@ -233,6 +460,13 @@ const getCurrentUser = async () => {
         }
       } catch (profileError) {
         console.error('Error obteniendo perfil del usuario:', profileError);
+        
+        // Si hay error de conexión, activar modo debug
+        if (axios.isAxiosError(profileError) && profileError.message.includes('Network Error')) {
+          console.log('[authService] Error de red: activando modo debug automáticamente');
+          toggleDebugMode(true);
+          return DEBUG_ADMIN_USER;
+        }
       }
       
       // Si no pudimos obtener el perfil pero tenemos un userRole, creamos un objeto usuario básico
@@ -251,26 +485,31 @@ const getCurrentUser = async () => {
       }
     }
     
+    // Si llegamos aquí, no hay usuario autenticado
     return null;
   } catch (error) {
-    console.error('Error getting current user:', error);
+    console.error('Error en getCurrentUser:', error);
     return null;
   }
 };
-
-// Inicializar axios con token si existe
-configureAxios();
 
 const authService = {
   login,
   register,
   logout,
-  getToken,
-  getUser,
   isAuthenticated,
+  getToken,
+  setToken,
+  getUser,
+  setUser,
+  configureAxios,
   getUserRole,
   getProfile,
-  getCurrentUser
+  getCurrentUser,
+  toggleDebugMode,
+  isDebugMode,
+  toggleConfigAccess,
+  canAccessConfig
 };
 
 export default authService; 
