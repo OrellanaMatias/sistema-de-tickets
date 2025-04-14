@@ -1,0 +1,73 @@
+/* Estilos básicos */
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  overflow-x: hidden; /* Prevenir scroll horizontal en todo el sitio */
+}
+
+/* Estilos para mejorar responsive */
+@media (max-width: 640px) {
+  /* Ajustes para mobiles */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Mejoras para tablas responsive */
+  .whitespace-nowrap {
+    white-space: normal !important;
+  }
+  
+  /* Evitar scroll horizontal en contenedores */
+  .overflow-x-auto {
+    overflow-x: visible !important;
+    max-width: 100% !important;
+  }
+  
+  /* Ajustar tablas en móvil */
+  table {
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+  
+  /* Botones en mobile */
+  button, .button, a[role="button"] {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Reducir padding en vistas pequeñas */
+  .px-6 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+}
+
+/* Prevenir overflow horizontal en el contenido de la página */
+.max-w-full {
+  max-width: 100%;
+}
+
+/* Mejorar visualización de texto largo */
+.break-words {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Ajustes por defecto para tablas responsivas */
+table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+/* Asegurar que no haya desbordamiento horizontal */
+.overflow-hidden {
+  overflow: hidden !important;
+}
+
+/* Resto de estilos que sean necesarios */
