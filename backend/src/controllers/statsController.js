@@ -2,19 +2,15 @@ const User = require('../models/User');
 const Ticket = require('../models/Ticket');
 const { Op } = require('sequelize');
 
-// @desc    Get dashboard statistics
-// @route   GET /api/stats/dashboard
-// @access  Private (Admin, Técnico)
+
 const getDashboardStats = async (req, res) => {
   try {
-    // Contar usuarios por rol
     const userCounts = {
       admin: await User.count({ where: { role: 'admin' } }),
       tecnico: await User.count({ where: { role: 'tecnico' } }),
       usuario: await User.count({ where: { role: 'usuario' } })
     };
 
-    // Contar tickets por estado
     const ticketCounts = {
       abierto: await Ticket.count({ where: { status: 'abierto' } }),
       en_progreso: await Ticket.count({ where: { status: 'en_progreso' } }),
@@ -38,12 +34,8 @@ const getDashboardStats = async (req, res) => {
   }
 };
 
-// @desc    Get recent activity
-// @route   GET /api/stats/recent-activity
-// @access  Private (Admin, Técnico)
 const getRecentActivity = async (req, res) => {
   try {
-    // Datos de ejemplo para actividad reciente en el formato esperado por el frontend
     const recentActivity = [
       { 
         id: 1, 
@@ -84,24 +76,18 @@ const getRecentActivity = async (req, res) => {
   }
 };
 
-// @desc    Get performance summary
-// @route   GET /api/stats/performance
-// @access  Private (Admin)
+
 const getPerformanceSummary = async (req, res) => {
   try {
-    // Obtener conteo de tickets
     const totalTickets = await Ticket.count();
     const resolvedTickets = await Ticket.count({ where: { status: 'cerrado' } });
     const pendingTickets = totalTickets - resolvedTickets;
     
-    // Calcular porcentajes
     const resolvedPercentage = totalTickets > 0 ? Math.round((resolvedTickets / totalTickets) * 100) : 0;
     const pendingPercentage = totalTickets > 0 ? Math.round((pendingTickets / totalTickets) * 100) : 0;
     
-    // Simular tiempo promedio de resolución (en días)
     const averageResolutionTime = 2.5;
     
-    // Datos adicionales (opcional)
     const technicians = [
       { id: 1, name: 'Técnico 1', ticketsAssigned: 12, ticketsClosed: 10, averageResolutionTime: '2.5 días' },
       { id: 2, name: 'Técnico 2', ticketsAssigned: 8, ticketsClosed: 5, averageResolutionTime: '3.2 días' }
@@ -121,12 +107,11 @@ const getPerformanceSummary = async (req, res) => {
       baja: 20
     };
 
-    // Devolver formato compatible con frontend
     res.json({
       resolvedPercentage,
       pendingPercentage,
       averageResolutionTime,
-      details: { // Datos adicionales en una propiedad separada
+      details: {
         technicians,
         categories,
         priorities

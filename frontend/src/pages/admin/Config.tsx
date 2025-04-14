@@ -2,11 +2,22 @@ import * as React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { 
   FaSpinner, FaCog, FaDatabase, FaEnvelope, 
-  FaServer, FaTools, FaSave 
+  FaServer, FaTools, FaSave, FaSync, FaExclamationTriangle
 } from 'react-icons/fa';
 import { AdminLayout } from '../../components/AdminLayout';
 import configService, { SystemConfig } from '../../services/configService';
 import authService from '../../services/authService';
+
+// Componentes para los íconos
+const SpinnerIcon = () => <FaSpinner />;
+const CogIcon = () => <FaCog />;
+const DatabaseIcon = () => <FaDatabase />;
+const EnvelopeIcon = () => <FaEnvelope />;
+const ServerIcon = () => <FaServer />;
+const ToolsIcon = () => <FaTools />;
+const SaveIcon = () => <FaSave />;
+const SyncIcon = () => <FaSync />;
+const WarningIcon = () => <FaExclamationTriangle />;
 
 const Config = () => {
   const [config, setConfig] = useState<SystemConfig | null>(null);
@@ -15,30 +26,43 @@ const Config = () => {
   const [activeTab, setActiveTab] = useState('general');
   const [message, setMessage] = useState({ text: '', type: '' });
   const [user, setUser] = useState<any>(null);
+  const [loadingDetails, setLoadingDetails] = useState<string[]>([]);
+  const [loadAttempts, setLoadAttempts] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const userData = await authService.getProfile();
-        setUser(userData);
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      setLoadingDetails([]);
+      
+      setLoadingDetails(prev => [...prev, "Verificando autenticación..."]);
+      const userData = await authService.getProfile();
+      setUser(userData);
 
-        if (userData?.role !== 'admin') {
-          setMessage({ text: 'No tienes permisos para acceder a esta página', type: 'error' });
-          return;
-        }
-
-        const configData = await configService.getSystemConfig();
-        setConfig(configData);
+      if (userData?.role !== 'admin') {
+        setMessage({ text: 'No tienes permisos para acceder a esta página', type: 'error' });
         setIsLoading(false);
-      } catch (error) {
-        console.error('Error al cargar datos:', error);
-        setMessage({ text: 'Error al cargar la configuración del sistema', type: 'error' });
-        setIsLoading(false);
+        return;
       }
-    };
 
+      setLoadingDetails(prev => [...prev, "Cargando configuración del sistema..."]);
+
+      // Aumentar el número de intentos
+      setLoadAttempts(prev => prev + 1);
+      
+      const configData = await configService.getSystemConfig();
+      setLoadingDetails(prev => [...prev, "Configuración cargada correctamente"]);
+      setConfig(configData);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error al cargar datos:', error);
+      setLoadingDetails(prev => [...prev, `Error al cargar la configuración: ${error instanceof Error ? error.message : 'Error desconocido'}`]);
+      setMessage({ text: 'Error al cargar la configuración del sistema. Revisa la consola para más detalles.', type: 'error' });
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, []);
 
@@ -151,21 +175,65 @@ const Config = () => {
     }
   };
 
+  // Si está cargando, mostrar indicador con detalles
   if (isLoading) {
     return (
       <AdminLayout>
-        <div className="flex justify-center items-center h-full">
-          <FaSpinner className="animate-spin text-blue-500 text-3xl" />
+        <div className="flex flex-col justify-center items-center h-full">
+          <div className="animate-spin text-blue-500 text-4xl mb-4">
+            <SpinnerIcon />
+          </div>
+          <p className="text-lg font-medium mb-4">Cargando configuración del sistema...</p>
+          
+          {/* Mostrar detalles del proceso de carga */}
+          <div className="bg-gray-100 p-4 rounded-lg w-full max-w-md">
+            {loadingDetails.map((detail, index) => (
+              <div key={index} className="text-sm py-1">
+                <span className="text-green-600 mr-2">✓</span>
+                {detail}
+              </div>
+            ))}
+          </div>
         </div>
       </AdminLayout>
     );
   }
 
-  if (!config) {
+  // Si no hay configuración y ya intentamos cargarla, mostrar un formulario alternativo
+  if (!config && loadAttempts > 0) {
     return (
       <AdminLayout>
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          No se pudo cargar la configuración del sistema.
+        <div className="p-4">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+            <div className="flex items-center mb-2">
+              <div className="text-red-500 mr-2">
+                <WarningIcon />
+              </div>
+              <p className="font-bold">Error al cargar la configuración</p>
+            </div>
+            <p>No se pudo cargar la configuración del sistema. Esto puede deberse a un problema con el servidor backend.</p>
+          </div>
+          
+          <div className="flex mt-4">
+            <button 
+              onClick={fetchData}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center"
+            >
+              <div className="mr-2">
+                <SyncIcon />
+              </div> 
+              Intentar nuevamente
+            </button>
+          </div>
+          
+          <div className="mt-8 bg-gray-100 p-4 rounded-lg">
+            <h3 className="text-lg font-medium mb-2">Información de diagnóstico</h3>
+            {loadingDetails.map((detail, index) => (
+              <div key={index} className="text-sm py-1">
+                {detail}
+              </div>
+            ))}
+          </div>
         </div>
       </AdminLayout>
     );
@@ -187,30 +255,42 @@ const Config = () => {
             className={`px-4 py-2 font-medium ${activeTab === 'general' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`}
             onClick={() => setActiveTab('general')}
           >
-            <FaCog className="inline mr-2" /> General
+            <div className="inline mr-2">
+              <CogIcon />
+            </div> 
+            General
           </button>
           <button 
             className={`px-4 py-2 font-medium ${activeTab === 'database' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`}
             onClick={() => setActiveTab('database')}
           >
-            <FaDatabase className="inline mr-2" /> Base de Datos
+            <div className="inline mr-2">
+              <DatabaseIcon />
+            </div> 
+            Base de Datos
           </button>
           <button 
             className={`px-4 py-2 font-medium ${activeTab === 'email' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`}
             onClick={() => setActiveTab('email')}
           >
-            <FaEnvelope className="inline mr-2" /> Email
+            <div className="inline mr-2">
+              <EnvelopeIcon />
+            </div> 
+            Email
           </button>
           <button 
             className={`px-4 py-2 font-medium ${activeTab === 'advanced' ? 'border-b-2 border-blue-500 text-blue-500' : 'text-gray-500'}`}
             onClick={() => setActiveTab('advanced')}
           >
-            <FaServer className="inline mr-2" /> Avanzado
+            <div className="inline mr-2">
+              <ServerIcon />
+            </div> 
+            Avanzado
           </button>
         </div>
         
         <form className="space-y-4">
-          {activeTab === 'general' && (
+          {config && activeTab === 'general' && (
             <div>
               <div className="mb-4">
                 <label className="block text-gray-700 font-medium mb-2">Nombre de la Aplicación</label>
@@ -260,10 +340,10 @@ const Config = () => {
             </div>
           )}
           
-          {activeTab === 'database' && (
+          {config && activeTab === 'database' && (
             <div>
               <div className="mb-4">
-                <label className="block text-gray-700 font-medium mb-2">Host de la Base de Datos</label>
+                <label className="block text-gray-700 font-medium mb-2">Host</label>
                 <input
                   type="text"
                   name="dbHost"
@@ -274,7 +354,7 @@ const Config = () => {
               </div>
               
               <div className="mb-4">
-                <label className="block text-gray-700 font-medium mb-2">Puerto de la Base de Datos</label>
+                <label className="block text-gray-700 font-medium mb-2">Puerto</label>
                 <input
                   type="text"
                   name="dbPort"
@@ -285,7 +365,7 @@ const Config = () => {
               </div>
               
               <div className="mb-4">
-                <label className="block text-gray-700 font-medium mb-2">Nombre de la Base de Datos</label>
+                <label className="block text-gray-700 font-medium mb-2">Nombre de la base de datos</label>
                 <input
                   type="text"
                   name="dbName"
@@ -295,30 +375,37 @@ const Config = () => {
                 />
               </div>
               
-              <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Backup de Base de Datos</h3>
+              <div className="mt-6 space-y-4">
+                <h3 className="font-medium text-lg">Operaciones de base de datos</h3>
+                
+                <div className="flex space-x-4">
                   <button
                     type="button"
                     onClick={handleBackupDatabase}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+                    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
                   >
-                    <FaDatabase className="inline mr-2" /> Crear Backup
+                    Realizar backup
                   </button>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Restaurar Base de Datos</h3>
-                  <div className="flex items-center space-x-2">
+                  
+                  <div>
                     <input
                       type="file"
                       ref={fileInputRef}
-                      className="w-full p-2 border border-gray-300 rounded"
+                      accept=".sql"
+                      className="hidden"
+                      id="backup-file"
                     />
+                    <label
+                      htmlFor="backup-file"
+                      className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 cursor-pointer"
+                    >
+                      Seleccionar archivo
+                    </label>
+                    
                     <button
                       type="button"
                       onClick={handleRestoreDatabase}
-                      className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded"
+                      className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 ml-2"
                     >
                       Restaurar
                     </button>
@@ -328,7 +415,7 @@ const Config = () => {
             </div>
           )}
           
-          {activeTab === 'email' && (
+          {config && activeTab === 'email' && (
             <div>
               <div className="mb-4">
                 <label className="block text-gray-700 font-medium mb-2">Servidor SMTP</label>
@@ -379,64 +466,88 @@ const Config = () => {
                 <button
                   type="button"
                   onClick={handleTestSmtp}
-                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
+                  className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
                 >
-                  <FaEnvelope className="inline mr-2" /> Probar Conexión SMTP
+                  Probar conexión
                 </button>
               </div>
             </div>
           )}
           
-          {activeTab === 'advanced' && (
+          {config && activeTab === 'advanced' && (
             <div>
-              <h3 className="text-lg font-medium mb-4">Tareas de Mantenimiento</h3>
+              <h3 className="font-medium text-lg mb-4">Mantenimiento del sistema</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="space-y-2">
                 <button
                   type="button"
                   onClick={() => handleMaintenance('clearCache')}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded"
+                  className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 w-full text-left"
                 >
-                  <FaTools className="inline mr-2" /> Limpiar Caché
+                  <div className="inline mr-2">
+                    <ToolsIcon />
+                  </div> 
+                  Limpiar caché del sistema
                 </button>
                 
                 <button
                   type="button"
                   onClick={() => handleMaintenance('optimizeTables')}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded"
+                  className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 w-full text-left"
                 >
-                  <FaTools className="inline mr-2" /> Optimizar Tablas
+                  <div className="inline mr-2">
+                    <ToolsIcon />
+                  </div> 
+                  Optimizar tablas de la base de datos
                 </button>
                 
                 <button
                   type="button"
                   onClick={() => handleMaintenance('clearLogs')}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded"
+                  className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 w-full text-left"
                 >
-                  <FaTools className="inline mr-2" /> Limpiar Logs
+                  <div className="inline mr-2">
+                    <ToolsIcon />
+                  </div> 
+                  Eliminar logs antiguos
                 </button>
+              </div>
+              
+              <div className="mt-8">
+                <div className="bg-yellow-100 p-4 rounded-lg text-yellow-800 mb-4">
+                  <p className="font-medium">⚠️ Advertencia</p>
+                  <p className="text-sm">Estas operaciones son potencialmente peligrosas y pueden afectar al funcionamiento del sistema. Úsalas con precaución.</p>
+                </div>
               </div>
             </div>
           )}
           
-          <div className="mt-6 border-t pt-4">
-            <button
-              type="button"
-              onClick={handleSaveConfig}
-              disabled={isSaving}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded flex items-center"
-            >
-              {isSaving ? (
-                <>
-                  <FaSpinner className="animate-spin mr-2" /> Guardando...
-                </>
-              ) : (
-                <>
-                  <FaSave className="mr-2" /> Guardar Configuración
-                </>
-              )}
-            </button>
-          </div>
+          {config && (
+            <div className="mt-6 border-t pt-4">
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={handleSaveConfig}
+                className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 flex items-center"
+              >
+                {isSaving ? (
+                  <>
+                    <div className="animate-spin mr-2">
+                      <SpinnerIcon />
+                    </div>
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <div className="mr-2">
+                      <SaveIcon />
+                    </div>
+                    Guardar configuración
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </AdminLayout>

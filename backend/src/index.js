@@ -6,17 +6,19 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const ticketRoutes = require('./routes/ticketRoutes');
 const statsRoutes = require('./routes/statsRoutes');
+const configRoutes = require('./routes/configRoutes');
 const User = require('./models/User');
 const Ticket = require('./models/Ticket');
+const Config = require('./models/Config');
 const bcryptjs = require('bcryptjs');
+const fs = require('fs');
+const path = require('path');
 
-// Cargar variables de entorno
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -24,18 +26,31 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Rutas
+// Asegurar que existen los directorios necesarios
+const ensureDirectories = () => {
+  const dirs = [
+    path.join(__dirname, '..', 'uploads'),
+    path.join(__dirname, '..', 'backups')
+  ];
+  
+  dirs.forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`Directorio creado: ${dir}`);
+    }
+  });
+};
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/config', configRoutes);
 
-// Ruta de bienvenida
 app.get('/', (req, res) => {
   res.json({ message: 'API del Sistema de Tickets' });
 });
 
-// Función para conectar a la base de datos con reintentos
 const connectWithRetry = async (maxRetries = 5, retryDelay = 5000) => {
   let retries = 0;
 
@@ -43,14 +58,15 @@ const connectWithRetry = async (maxRetries = 5, retryDelay = 5000) => {
     try {
       console.log(`Intento de conexión a la base de datos ${retries + 1}/${maxRetries}...`);
       
-      // Verificar la conexión primero
       await sequelize.authenticate();
       console.log('Conexión a base de datos establecida correctamente');
       
-      // Sincronizar modelos con la base de datos de manera forzada para garantizar creación
       console.log('Sincronizando modelos con la base de datos...');
       await sequelize.sync({ force: false, alter: true });
       console.log('Modelos sincronizados correctamente');
+      
+      // Inicializar configuración del sistema
+      await Config.ensureConfig();
       
       return true;
     } catch (error) {
@@ -68,10 +84,11 @@ const connectWithRetry = async (maxRetries = 5, retryDelay = 5000) => {
   }
 };
 
-// Iniciar el servidor
 const startServer = async () => {
   try {
-    // Intentar conectar a la base de datos con reintentos
+    // Asegurar que existen los directorios necesarios
+    ensureDirectories();
+    
     const connected = await connectWithRetry();
     
     if (!connected) {
@@ -80,7 +97,6 @@ const startServer = async () => {
       console.log('Base de datos inicializada correctamente.');
     }
     
-    // Iniciar servidor
     app.listen(PORT, () => {
       console.log(`Servidor ejecutándose en puerto ${PORT}`);
     });
@@ -89,4 +105,4 @@ const startServer = async () => {
   }
 };
 
-startServer(); 
+startServer();

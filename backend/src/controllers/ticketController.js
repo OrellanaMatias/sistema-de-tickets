@@ -2,7 +2,6 @@ const Ticket = require('../models/Ticket');
 const User = require('../models/User');
 const { Op } = require('sequelize');
 
-// Obtener todos los tickets (para admin y técnicos)
 const getAllTickets = async (req, res) => {
   try {
     const tickets = await Ticket.findAll({
@@ -19,7 +18,6 @@ const getAllTickets = async (req, res) => {
   }
 };
 
-// Obtener tickets del usuario actual
 const getUserTickets = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -37,7 +35,6 @@ const getUserTickets = async (req, res) => {
   }
 };
 
-// Obtener un ticket por su ID
 const getTicketById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -52,7 +49,6 @@ const getTicketById = async (req, res) => {
       return res.status(404).json({ message: `Ticket con ID ${id} no encontrado` });
     }
     
-    // Verificar que el usuario tenga acceso al ticket (admin, técnico o creador)
     if (req.user.role === 'usuario' && ticket.userId !== req.user.id) {
       return res.status(403).json({ message: 'No tienes permisos para ver este ticket' });
     }
@@ -64,13 +60,11 @@ const getTicketById = async (req, res) => {
   }
 };
 
-// Crear un nuevo ticket
 const createTicket = async (req, res) => {
   try {
     const { title, description, priority, category } = req.body;
     const userId = req.user.id;
     
-    // Validaciones
     if (!title || !description) {
       return res.status(400).json({ message: 'Título y descripción son obligatorios' });
     }
@@ -91,7 +85,6 @@ const createTicket = async (req, res) => {
   }
 };
 
-// Actualizar un ticket existente
 const updateTicket = async (req, res) => {
   try {
     const { id } = req.params;
@@ -103,7 +96,6 @@ const updateTicket = async (req, res) => {
       return res.status(404).json({ message: `Ticket con ID ${id} no encontrado` });
     }
     
-    // Actualizar campos
     await ticket.update({
       title: title || ticket.title,
       description: description || ticket.description,
@@ -118,7 +110,6 @@ const updateTicket = async (req, res) => {
   }
 };
 
-// Cambiar el estado de un ticket
 const updateTicketStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -143,19 +134,16 @@ const updateTicketStatus = async (req, res) => {
   }
 };
 
-// Asignar un ticket a un técnico
 const assignTicket = async (req, res) => {
   try {
     const { id } = req.params;
     const { technicianId } = req.body;
     
-    // Verificar que el ticket existe
     const ticket = await Ticket.findByPk(id);
     if (!ticket) {
       return res.status(404).json({ message: `Ticket con ID ${id} no encontrado` });
     }
     
-    // Verificar que el técnico existe y tiene rol de técnico
     if (technicianId) {
       const technician = await User.findOne({
         where: { id: technicianId, role: 'tecnico' }
@@ -166,7 +154,6 @@ const assignTicket = async (req, res) => {
       }
     }
     
-    // Asignar o desasignar
     await ticket.update({ 
       assignedToId: technicianId || null,
       status: technicianId ? 'en_progreso' : 'abierto'
@@ -182,21 +169,16 @@ const assignTicket = async (req, res) => {
   }
 };
 
-// Obtener estadísticas de tickets para el usuario
 const getUserTicketStats = async (req, res) => {
   try {
     const userId = req.user.id;
     
-    // Total de tickets
     const total = await Ticket.count({ where: { userId } });
     
-    // Tickets pendientes (abiertos)
     const pending = await Ticket.count({ where: { userId, status: 'abierto' } });
     
-    // Tickets en progreso
     const inProgress = await Ticket.count({ where: { userId, status: 'en_progreso' } });
     
-    // Tickets resueltos (cerrados)
     const resolved = await Ticket.count({ where: { userId, status: 'cerrado' } });
     
     return res.status(200).json({

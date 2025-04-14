@@ -11,7 +11,7 @@ services:
     depends_on:
       - backend
     environment:
-      - VITE_API_URL=http://host.docker.internal:3000/api
+      - VITE_API_URL=http://localhost:3000/api
     networks:
       - app-network
 

@@ -1,6 +1,5 @@
 const { Sequelize } = require('sequelize');
 
-// Configuración para la conexión con la base de datos MySQL
 const sequelize = new Sequelize(
   process.env.DB_NAME || 'ticketing',
   process.env.DB_USER || 'root',
@@ -8,7 +7,7 @@ const sequelize = new Sequelize(
   {
     host: process.env.DB_HOST || 'mysql',
     dialect: 'mysql',
-    logging: console.log, // Habilitar logging para depuración
+    logging: console.log,
     pool: {
       max: 10,
       min: 0,

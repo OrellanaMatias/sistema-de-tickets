@@ -3,7 +3,6 @@ const bcrypt = require('bcryptjs');
 const asyncHandler = require('express-async-handler');
 const generateToken = require('../utils/generateToken');
 
-// Obtener todos los usuarios
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.findAll({
@@ -16,7 +15,6 @@ const getAllUsers = async (req, res) => {
   }
 };
 
-// Obtener un usuario por ID
 const getUserById = async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id, {
@@ -34,7 +32,6 @@ const getUserById = async (req, res) => {
   }
 };
 
-// Crear un nuevo usuario
 const createUser = asyncHandler(async (req, res) => {
   const { email, password, displayName, role } = req.body;
 
@@ -43,7 +40,6 @@ const createUser = asyncHandler(async (req, res) => {
     throw new Error('Por favor proporcione email y contraseña');
   }
 
-  // Check if user exists
   const userExists = await User.findOne({ where: { email } });
 
   if (userExists) {
@@ -51,11 +47,9 @@ const createUser = asyncHandler(async (req, res) => {
     throw new Error('El usuario ya existe');
   }
 
-  // Hash password
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
 
-  // Create user
   const user = await User.create({
     email,
     displayName,
@@ -77,20 +71,17 @@ const createUser = asyncHandler(async (req, res) => {
   }
 });
 
-// Actualizar un usuario
 const updateUser = async (req, res) => {
   try {
     const { displayName, password, email, role, active } = req.body;
     const userId = req.params.id;
     
-    // Verificar si el usuario existe
     const user = await User.findByPk(userId);
     
     if (!user) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
     
-    // Actualizar datos
     if (displayName) user.displayName = displayName;
     if (password) {
       const salt = await bcrypt.genSalt(10);
@@ -115,7 +106,6 @@ const updateUser = async (req, res) => {
   }
 };
 
-// Eliminar un usuario (desactivación lógica)
 const deleteUser = async (req, res) => {
   try {
     const userId = req.params.id;
@@ -126,7 +116,6 @@ const deleteUser = async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
     
-    // Desactivar usuario en lugar de eliminarlo
     user.active = false;
     await user.save();
     
@@ -137,7 +126,6 @@ const deleteUser = async (req, res) => {
   }
 };
 
-// Get user profile
 const getUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findByPk(req.user.id);
 
@@ -154,7 +142,6 @@ const getUserProfile = asyncHandler(async (req, res) => {
   }
 });
 
-// Update user profile
 const updateProfile = asyncHandler(async (req, res) => {
   const user = await User.findByPk(req.user.id);
 
@@ -182,11 +169,9 @@ const updateProfile = asyncHandler(async (req, res) => {
   }
 });
 
-// Login user
 const authUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
-  // Check for user email
   const user = await User.findOne({ where: { email } });
 
   if (user && (await bcrypt.compare(password, user.password))) {
