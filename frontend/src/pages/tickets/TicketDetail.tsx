@@ -37,12 +37,14 @@ const TicketDetail: React.FC = () => {
   const [newComment, setNewComment] = useState('');
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<'status' | 'assign' | 'deleteComment' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'status' | 'assign' | 'assignToTech' | 'deleteComment' | null>(null);
   const [newStatus, setNewStatus] = useState<'abierto' | 'en_progreso' | 'cerrado' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'tecnico' | 'usuario' | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [selectedCommentId, setSelectedCommentId] = useState<number | null>(null);
+  const [technicians, setTechnicians] = useState<{id: number, displayName: string}[]>([]);
+  const [selectedTechnicianId, setSelectedTechnicianId] = useState<number | null>(null);
 
   useEffect(() => {
     const user = authService.getUser();
@@ -52,6 +54,11 @@ const TicketDetail: React.FC = () => {
     }
     
     fetchTicket();
+    
+    // Cargar técnicos si el usuario es admin
+    if (user?.role === 'admin') {
+      fetchTechnicians();
+    }
   }, [id]);
 
   const fetchTicket = async () => {
@@ -90,6 +97,16 @@ const TicketDetail: React.FC = () => {
     }
   };
 
+  const fetchTechnicians = async () => {
+    try {
+      // Esta función debería existir en el servicio de usuarios o adaptarse según la API
+      const response = await authService.getTechnicians();
+      setTechnicians(response);
+    } catch (error) {
+      console.error('Error al cargar técnicos:', error);
+    }
+  };
+
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newComment.trim() === '' || !id) return;
@@ -114,6 +131,11 @@ const TicketDetail: React.FC = () => {
 
   const openAssignConfirm = () => {
     setConfirmAction('assign');
+    setShowConfirmModal(true);
+  };
+
+  const openAssignToTechnicianModal = () => {
+    setConfirmAction('assignToTech');
     setShowConfirmModal(true);
   };
 
@@ -150,6 +172,22 @@ const TicketDetail: React.FC = () => {
     } finally {
       setActionLoading(false);
       setShowConfirmModal(false);
+    }
+  };
+
+  const handleAssignToTechnician = async () => {
+    if (!ticket?.id || !selectedTechnicianId) return;
+    
+    setActionLoading(true);
+    try {
+      await ticketService.assignTicket(ticket.id, selectedTechnicianId);
+      await fetchTicket();
+    } catch (error) {
+      console.error('Error al asignar ticket:', error);
+    } finally {
+      setActionLoading(false);
+      setShowConfirmModal(false);
+      setSelectedTechnicianId(null);
     }
   };
 
@@ -210,12 +248,20 @@ const TicketDetail: React.FC = () => {
     });
   };
 
+  const formatCommentDate = (dateString?: string) => {
+    if (!dateString) return 'Fecha desconocida';
+    
+    const date = new Date(dateString);
+    return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+  };
+
   const confirmationModal = () => {
     if (!showConfirmModal) return null;
 
     let title = '';
     let message = '';
     let actionFunction = () => {};
+    let content = null;
     
     if (confirmAction === 'status' && newStatus) {
       let statusText = '';
@@ -232,6 +278,24 @@ const TicketDetail: React.FC = () => {
       title = 'Asignar ticket';
       message = `¿Estás seguro de que quieres asignarte el ticket "${ticket?.title}"?`;
       actionFunction = handleAssignToSelf;
+    } else if (confirmAction === 'assignToTech') {
+      title = 'Asignar ticket a técnico';
+      message = 'Selecciona el técnico al que deseas asignar este ticket:';
+      actionFunction = handleAssignToTechnician;
+      content = (
+        <div className="mt-4 w-full">
+          <select 
+            className="block w-full mt-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+            value={selectedTechnicianId || ''}
+            onChange={(e) => setSelectedTechnicianId(Number(e.target.value))}
+          >
+            <option value="">Selecciona un técnico</option>
+            {technicians.map(tech => (
+              <option key={tech.id} value={tech.id}>{tech.displayName}</option>
+            ))}
+          </select>
+        </div>
+      );
     } else if (confirmAction === 'deleteComment') {
       title = 'Eliminar comentario';
       message = '¿Estás seguro de que quieres eliminar este comentario?';
@@ -239,34 +303,51 @@ const TicketDetail: React.FC = () => {
     }
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full">
-          <h3 className="text-lg font-semibold mb-2">{title}</h3>
-          <p className="text-gray-600 mb-4">{message}</p>
-          <div className="flex justify-end space-x-3">
-            <button 
-              onClick={() => setShowConfirmModal(false)}
-              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-              disabled={actionLoading}
-            >
-              Cancelar
-            </button>
-            <button 
-              onClick={actionFunction}
-              className="px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700"
-              disabled={actionLoading}
-            >
-              {actionLoading ? 
-                <span className="flex items-center">
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Procesando
-                </span> : 
-                'Confirmar'
-              }
-            </button>
+      <div className="fixed z-50 inset-0 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
+          <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+          <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full sm:w-full sm:p-6 p-4">
+            <div className="sm:flex sm:items-start">
+              <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
+                <i className="fas fa-info-circle text-indigo-600"></i>
+              </div>
+              <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                  {title}
+                </h3>
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500">{message}</p>
+                  {content}
+                </div>
+              </div>
+            </div>
+            <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-2 flex flex-col-reverse">
+              <button
+                type="button"
+                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm"
+                onClick={actionFunction}
+                disabled={actionLoading}
+              >
+                {actionLoading ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Procesando...
+                  </>
+                ) : confirmAction === 'deleteComment' ? 'Eliminar' : 'Confirmar'}
+              </button>
+              <button
+                type="button"
+                className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm"
+                onClick={() => setShowConfirmModal(false)}
+                disabled={actionLoading}
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -285,53 +366,44 @@ const TicketDetail: React.FC = () => {
 
     if (comments.length === 0) {
       return (
-        <div className="py-6 text-center border-t">
+        <div className="py-4 text-center">
           <p className="text-gray-500">No hay comentarios para este ticket.</p>
         </div>
       );
     }
 
     return (
-      <div className="space-y-4 mt-4">
+      <div className="space-y-3 w-full">
         {comments.map(comment => (
-          <div key={comment.id} className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex justify-between items-start">
-              <div className="flex items-start space-x-3">
-                <div className="bg-indigo-100 text-indigo-800 p-2 rounded-full">
-                  <span className="text-sm font-medium">
-                    {comment.user?.displayName?.charAt(0) || 'U'}
-                  </span>
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">{comment.user?.displayName}</p>
-                  <p className="text-sm text-gray-500">
-                    {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : 'Fecha desconocida'} 
-                    <span className="mx-1">•</span>
-                    <span className={
-                      comment.user?.role === 'admin' ? 'text-red-600' :
-                      comment.user?.role === 'tecnico' ? 'text-blue-600' : ''
-                    }>
-                      {comment.user?.role === 'admin' ? 'Administrador' :
-                       comment.user?.role === 'tecnico' ? 'Técnico' : 'Usuario'}
-                    </span>
-                  </p>
-                </div>
-              </div>
-              {(userRole === 'admin' || (comment.userId === currentUserId)) && (
+          <div key={comment.id} className="bg-gray-50 p-3 rounded-lg break-words">
+            <div className="flex justify-between items-center mb-1">
+              <div className="font-medium text-gray-900">{comment.user?.displayName || 'Usuario'}</div>
+              {((userRole === 'admin') || 
+                 (userRole === 'tecnico' && comment.user?.id === currentUserId) || 
+                 (userRole === 'usuario' && comment.user?.id === currentUserId)) && (
                 <button 
                   onClick={() => openDeleteCommentConfirm(comment.id!)}
-                  className="text-red-500 hover:text-red-700"
+                  className="text-red-500 hover:text-red-700 p-1"
                   title="Eliminar comentario"
                 >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                     <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"></path>
                   </svg>
                 </button>
               )}
             </div>
-            <div className="mt-2 text-gray-700 whitespace-pre-wrap">
-              {comment.text}
-            </div>
+            <p className="text-xs text-gray-500 mb-1">
+              {formatCommentDate(comment.createdAt)}
+              <span className="mx-1">•</span>
+              <span className={
+                comment.user?.role === 'admin' ? 'text-red-600' :
+                comment.user?.role === 'tecnico' ? 'text-blue-600' : ''
+              }>
+                {comment.user?.role === 'admin' ? 'Administrador' :
+                 comment.user?.role === 'tecnico' ? 'Técnico' : 'Usuario'}
+              </span>
+            </p>
+            <div className="text-gray-700 text-sm">{comment.text}</div>
           </div>
         ))}
       </div>
@@ -364,11 +436,11 @@ const TicketDetail: React.FC = () => {
 
     return (
       <>
-        <div className="bg-white rounded-lg shadow">
+        <div className="bg-white rounded-lg shadow flex flex-col h-full">
           {/* Cabecera */}
-          <div className="border-b p-6">
-            <div className="flex justify-between items-start mb-4">
-              <h1 className="text-xl font-bold text-gray-900 mb-2">
+          <div className="border-b p-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-2 mb-3">
+              <h1 className="text-xl font-bold text-gray-900">
                 {ticket.title}
               </h1>
               <div className="flex gap-2">
@@ -382,136 +454,142 @@ const TicketDetail: React.FC = () => {
               </div>
             </div>
             
-            <div className="flex items-center text-sm text-gray-500 mb-4">
-              <div className="mr-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+              <div>
                 <span className="font-medium text-gray-700">Ticket #</span> {ticket.id}
               </div>
-              <div className="mr-6">
+              <div>
                 <span className="font-medium text-gray-700">Creado</span> {formatDate(ticket.created_at)}
               </div>
-              <div>
+              <div className="col-span-2 md:col-span-1">
                 <span className="font-medium text-gray-700">Actualizado</span> {formatDate(ticket.updated_at)}
               </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-              <div className="flex items-center">
-                <i className="fas fa-user text-gray-400 mr-2"></i>
-                <div>
-                  <div className="text-xs text-gray-500">Creado por</div>
-                  <div className="font-medium">{ticket.creator?.displayName || 'Usuario'}</div>
-                </div>
+              <div className="col-span-2 md:col-span-1">
+                <span className="font-medium text-gray-700">Categoría</span> {ticket.category.charAt(0).toUpperCase() + ticket.category.slice(1)}
               </div>
-              
-              <div className="flex items-center">
-                <i className="fas fa-user-cog text-gray-400 mr-2"></i>
-                <div>
-                  <div className="text-xs text-gray-500">Asignado a</div>
-                  <div className="font-medium">{ticket.assignedTo?.displayName || 'Sin asignar'}</div>
-                </div>
+              <div className="col-span-2 md:col-span-1">
+                <span className="font-medium text-gray-700">Creado por</span> {ticket.creator?.displayName || 'Usuario'}
               </div>
-              
-              <div className="flex items-center">
-                <i className={`${getCategoryIcon(ticket.category)} text-gray-400 mr-2`}></i>
-                <div>
-                  <div className="text-xs text-gray-500">Categoría</div>
-                  <div className="font-medium">{ticket.category.charAt(0).toUpperCase() + ticket.category.slice(1)}</div>
-                </div>
+              <div className="col-span-2 md:col-span-1">
+                <span className="font-medium text-gray-700">Asignado a</span> {ticket.assignedTo?.displayName || 'Sin asignar'}
               </div>
             </div>
           </div>
           
           {/* Acciones */}
           {(userRole === 'tecnico' || userRole === 'admin') && (
-            <div className="bg-gray-50 p-4 flex flex-wrap gap-2 border-b">
-              {/* Botones para cambiar estado */}
-              {ticket.status !== 'abierto' && (
-                <button 
-                  onClick={() => openStatusConfirm('abierto')}
-                  className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <i className="fas fa-folder-open mr-2 text-blue-500"></i>
-                  Reabrir
-                </button>
+            <div className="bg-gray-50 p-3 flex flex-wrap gap-2 border-b">
+              {/* Botones para cambiar estado (solo técnicos) */}
+              {userRole === 'tecnico' && (
+                <>
+                  {ticket.status !== 'abierto' && (
+                    <button 
+                      onClick={() => openStatusConfirm('abierto')}
+                      className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                      <i className="fas fa-folder-open mr-2 text-blue-500"></i>
+                      Reabrir
+                    </button>
+                  )}
+                  
+                  {ticket.status !== 'en_progreso' && (
+                    <button 
+                      onClick={() => openStatusConfirm('en_progreso')}
+                      className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-yellow-500 hover:bg-yellow-600"
+                    >
+                      <i className="fas fa-play mr-2"></i>
+                      Iniciar
+                    </button>
+                  )}
+                  
+                  {ticket.status !== 'cerrado' && (
+                    <button 
+                      onClick={() => openStatusConfirm('cerrado')}
+                      className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-500 hover:bg-green-600"
+                    >
+                      <i className="fas fa-check-circle mr-2"></i>
+                      Resolver
+                    </button>
+                  )}
+                  
+                  {/* Botón para asignarse el ticket (solo técnicos) */}
+                  {!ticket.assignedTo && (
+                    <button 
+                      onClick={openAssignConfirm}
+                      className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                    >
+                      <i className="fas fa-user-plus mr-2"></i>
+                      Asignarme
+                    </button>
+                  )}
+                </>
               )}
               
-              {ticket.status !== 'en_progreso' && (
+              {/* Botón para asignar a un técnico (solo admin) */}
+              {userRole === 'admin' && (
                 <button 
-                  onClick={() => openStatusConfirm('en_progreso')}
-                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-yellow-500 hover:bg-yellow-600"
+                  onClick={openAssignToTechnicianModal}
+                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
                 >
-                  <i className="fas fa-play mr-2"></i>
-                  Iniciar
-                </button>
-              )}
-              
-              {ticket.status !== 'cerrado' && (
-                <button 
-                  onClick={() => openStatusConfirm('cerrado')}
-                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-500 hover:bg-green-600"
-                >
-                  <i className="fas fa-check-circle mr-2"></i>
-                  Resolver
-                </button>
-              )}
-              
-              {/* Botón para asignarse el ticket (solo técnicos) */}
-              {userRole === 'tecnico' && !ticket.assignedTo && (
-                <button 
-                  onClick={openAssignConfirm}
-                  className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                  <i className="fas fa-user-plus mr-2"></i>
-                  Asignarme
+                  <i className="fas fa-user-cog mr-2"></i>
+                  Asignar a técnico
                 </button>
               )}
             </div>
           )}
           
-          {/* Descripción */}
-          <div className="p-6 border-b">
-            <h2 className="text-lg font-medium mb-4">Descripción</h2>
-            <div className="prose max-w-none">
-              <p className="whitespace-pre-line">{ticket.description}</p>
+          {/* Contenido principal (descripción y comentarios) en un contenedor con desplazamiento */}
+          <div className="flex flex-col md:flex-row overflow-y-auto flex-1">
+            {/* Descripción - ocupa una proporción menor en escritorio */}
+            <div className="p-4 md:w-2/5 md:border-r">
+              <h2 className="text-lg font-medium mb-3">Descripción</h2>
+              <div className="prose max-w-none">
+                <p className="whitespace-pre-line break-words">{ticket.description}</p>
+              </div>
             </div>
-          </div>
-          
-          {/* Comentarios */}
-          <div className="mt-8">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Comentarios</h3>
             
-            {renderComments()}
-            
-            {/* Formulario para añadir comentario */}
-            <form onSubmit={handleAddComment} className="mt-6">
-              <div className="mt-1">
-                <textarea
-                  rows={3}
-                  className="shadow-sm block w-full sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                  placeholder="Escribe un comentario..."
-                  value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
-                  disabled={commentSubmitting}
-                ></textarea>
+            {/* Comentarios - ocupa una proporción mayor en escritorio */}
+            <div className="p-4 md:w-3/5 flex flex-col max-h-full">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">Comentarios</h3>
+              
+              {/* Contenedor con scroll independiente para los comentarios */}
+              <div className="overflow-y-auto flex-1 pr-1">
+                {renderComments()}
               </div>
-              <div className="mt-3 flex justify-end">
-                <button
-                  type="submit"
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  disabled={commentSubmitting || newComment.trim() === ''}
-                >
-                  {commentSubmitting ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Enviando...
-                    </>
-                  ) : 'Enviar comentario'}
-                </button>
+              
+              {/* Formulario de comentarios siempre visible */}
+              <div className="pt-3 border-t mt-3">
+                <form onSubmit={handleAddComment} className="w-full">
+                  <div className="w-full">
+                    <textarea
+                      rows={2}
+                      className="shadow-sm block w-full sm:text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 resize-y px-4 py-3"
+                      placeholder="Escribe un comentario..."
+                      value={newComment}
+                      onChange={e => setNewComment(e.target.value)}
+                      disabled={commentSubmitting}
+                    ></textarea>
+                  </div>
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      type="submit"
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 w-full sm:w-auto"
+                      disabled={commentSubmitting || newComment.trim() === ''}
+                    >
+                      {commentSubmitting ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Enviando...
+                        </>
+                      ) : 'Enviar comentario'}
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
+            </div>
           </div>
         </div>
         
@@ -533,8 +611,8 @@ const TicketDetail: React.FC = () => {
   };
 
   return (
-    <div className="p-4">
-      <div className="mb-4 flex items-center">
+    <div className="p-4 h-full flex flex-col">
+      <div className="mb-4">
         <button
           onClick={() => navigate(-1)}
           className="text-blue-600 hover:text-blue-800 flex items-center"

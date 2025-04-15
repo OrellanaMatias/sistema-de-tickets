@@ -518,6 +518,30 @@ const getCurrentUser = async () => {
   }
 };
 
+// Obtener técnicos (para administradores)
+const getTechnicians = async (): Promise<{id: number, displayName: string}[]> => {
+  try {
+    const token = getToken();
+    const response = await fetch(`${API_URL}/users/technicians`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error al obtener técnicos');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error en getTechnicians:', error);
+    return [];
+  }
+};
+
 const authService = {
   login,
   register,
@@ -534,7 +558,8 @@ const authService = {
   toggleDebugMode,
   isDebugMode,
   toggleConfigAccess,
-  canAccessConfig
+  canAccessConfig,
+  getTechnicians
 };
 
 export default authService; 

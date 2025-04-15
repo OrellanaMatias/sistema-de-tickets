@@ -175,12 +175,6 @@ const Login = () => {
           </div>
         </div>
       </div>
-      
-      <div className="mt-2 text-center">
-        <p className="text-xs text-gray-500">
-          Matias Orellana - 2025
-        </p>
-      </div>
     </div>
   );
 };

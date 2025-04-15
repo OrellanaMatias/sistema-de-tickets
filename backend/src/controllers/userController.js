@@ -227,6 +227,27 @@ const authUser = asyncHandler(async (req, res) => {
   }
 });
 
+// Obtener todos los técnicos
+const getTechnicians = async (req, res) => {
+  try {
+    // Verificar que quien solicita es admin
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'No tienes permisos para realizar esta acción' });
+    }
+
+    const technicians = await User.findAll({
+      where: { role: 'tecnico', active: true },
+      attributes: ['id', 'displayName', 'email'],
+      order: [['displayName', 'ASC']]
+    });
+
+    return res.status(200).json(technicians);
+  } catch (error) {
+    console.error('Error al obtener técnicos:', error);
+    return res.status(500).json({ message: 'Error al obtener técnicos', error: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -235,5 +256,6 @@ module.exports = {
   deleteUser,
   getUserProfile,
   updateProfile,
-  authUser
+  authUser,
+  getTechnicians
 }; 

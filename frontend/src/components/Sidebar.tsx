@@ -40,6 +40,11 @@ const Sidebar: React.FC<SidebarProps> = ({ role }) => {
       text: 'Dashboard'
     },
     {
+      to: '/admin/tickets',
+      icon: 'fas fa-ticket-alt',
+      text: 'Tickets'
+    },
+    {
       to: '/admin/users',
       icon: 'fas fa-users',
       text: 'Usuarios'

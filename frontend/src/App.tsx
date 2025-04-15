@@ -5,6 +5,7 @@ import CreateTicket from './pages/tickets/CreateTicket';
 import AdminDashboard from './pages/admin/Dashboard';
 import UsersManagement from './pages/admin/UsersManagement';
 import Config from './pages/admin/Config';
+import AdminTicketList from './pages/admin/TicketList';
 import { useState, useEffect } from 'react';
 import Login from './components/Login';
 import Register from './pages/Register';
@@ -180,6 +181,14 @@ const App = () => {
             !user ? <Navigate to="/login" /> : 
             user.role !== 'admin' ? <Navigate to={getRedirectPath(user.role)} /> : 
             <Config />
+          } 
+        />
+        <Route 
+          path="/admin/tickets" 
+          element={
+            !user ? <Navigate to="/login" /> : 
+            user.role !== 'admin' ? <Navigate to={getRedirectPath(user.role)} /> : 
+            <AdminTicketList />
           } 
         />
         

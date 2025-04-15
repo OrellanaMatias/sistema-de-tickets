@@ -8,7 +8,8 @@ const {
   deleteUser,
   getUserProfile,
   updateProfile,
-  authUser
+  authUser,
+  getTechnicians
 } = require('../controllers/userController');
 const { authMiddleware, checkRole } = require('../middleware/auth');
 
@@ -28,5 +29,8 @@ router.get('/admin/:id', authMiddleware, checkRole(['admin']), getUserById);
 router.post('/admin', authMiddleware, checkRole(['admin']), createUser);
 router.put('/admin/:id', authMiddleware, checkRole(['admin']), updateUser);
 router.delete('/admin/:id', authMiddleware, checkRole(['admin']), deleteUser);
+
+// Rutas para obtener técnicos (requiere ser admin)
+router.get('/technicians', authMiddleware, checkRole(['admin']), getTechnicians);
 
 module.exports = router; 
