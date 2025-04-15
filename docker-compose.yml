@@ -11,9 +11,12 @@ services:
     depends_on:
       - backend
     environment:
-      - VITE_API_URL=http://localhost:3000/api
+      - VITE_API_URL=http://backend:3000/api
     networks:
       - app-network
+    tty: true
+    stdin_open: true
+    restart: always
 
   backend:
     build: ./backend
@@ -33,9 +36,10 @@ services:
       - DB_NAME=ticketing
       - JWT_SECRET=secreto_jwt_ticketing_sistema
       - NODE_ENV=development
+      - CORS_ORIGIN=*
     networks:
       - app-network
-    restart: on-failure
+    restart: always
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 30s

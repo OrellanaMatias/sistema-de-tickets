@@ -4,14 +4,30 @@ import authService from './authService';
 // Usar una URL basada en la ubicación actual del navegador para mayor compatibilidad
 const getBaseUrl = () => {
   const { protocol, hostname } = window.location;
-  return `${protocol}//${hostname}:3000/api`;
+  
+  // Configuración para contenedor Docker y cualquier host
+  const backendPort = '3000';
+  const apiPath = '/api';
+  
+  // Usar el mismo hostname que el cliente está usando actualmente
+  return `${protocol}//${hostname}:${backendPort}${apiPath}`;
 };
 
-// Verificar la variable de entorno - si contiene host.docker.internal, ignorarla
+// Verificar la variable de entorno para la URL de la API
 const envUrl = import.meta.env.VITE_API_URL;
-const API_URL = (envUrl && !envUrl.includes('host.docker.internal')) 
-  ? envUrl 
-  : getBaseUrl();
+
+// Determinar si estamos dentro del contenedor Docker o ejecutando en navegador
+const isRunningInBrowser = typeof window !== 'undefined';
+
+// Usar la variable de entorno si está definida, de lo contrario usar la función getBaseUrl
+// Si la URL contiene 'backend', reemplazarla con el hostname del navegador cuando se ejecuta en navegador
+let API_URL = envUrl || getBaseUrl();
+
+// Cuando se ejecuta en navegador y la URL contiene 'backend'
+if (isRunningInBrowser && API_URL.includes('backend')) {
+  const { protocol, hostname } = window.location;
+  API_URL = API_URL.replace('http://backend', `${protocol}//${hostname}`);
+}
 
 // Obtener token usando authService para mantener consistencia
 const getAuthHeader = () => {
