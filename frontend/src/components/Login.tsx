@@ -1,4 +1,4 @@
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 
@@ -7,16 +7,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [animateIn, setAnimateIn] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    // Añadir la animación después de un pequeño retraso para que sea visible
-    const timer = setTimeout(() => {
-      setAnimateIn(true);
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -50,9 +41,7 @@ const Login = () => {
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4">
       <div 
-        className={`w-full max-w-sm bg-white rounded-xl shadow-xl transform transition-all duration-500 ${
-          animateIn ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
-        }`}
+        className="w-full max-w-sm bg-white rounded-xl shadow-xl"
       >
         <div className="relative">
           {/* Decoración superior */}
