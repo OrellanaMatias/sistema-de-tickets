@@ -22,10 +22,11 @@ router.route('/profile')
   .put(authMiddleware, updateProfile);
 
 // Rutas administrativas (requieren rol admin)
-router.use('/admin', authMiddleware, checkRole(['admin']));
-router.get('/admin', getAllUsers);
-router.get('/admin/:id', getUserById);
-router.put('/admin/:id', updateUser);
-router.delete('/admin/:id', deleteUser);
+// En lugar de usar router.use, vamos a definir cada ruta explícitamente con sus middlewares
+router.get('/admin', authMiddleware, checkRole(['admin']), getAllUsers);
+router.get('/admin/:id', authMiddleware, checkRole(['admin']), getUserById);
+router.post('/admin', authMiddleware, checkRole(['admin']), createUser);
+router.put('/admin/:id', authMiddleware, checkRole(['admin']), updateUser);
+router.delete('/admin/:id', authMiddleware, checkRole(['admin']), deleteUser);
 
 module.exports = router; 

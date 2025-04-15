@@ -49,9 +49,27 @@ const UsersPage = () => {
   };
 
   const handleUserCreate = async () => {
+    // Validar el email antes de enviarlo
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newUser.email)) {
+      alert('Por favor, ingresa un email válido');
+      return;
+    }
+
+    // Validar que todos los campos obligatorios estén llenos
+    if (!newUser.displayName || !newUser.email || !newUser.password) {
+      alert('Por favor, completa todos los campos obligatorios');
+      return;
+    }
+
     // Crear usuario en la API
     try {
       setIsLoading(true);
+      console.log("Datos que se enviarán al servidor:", {
+        ...newUser,
+        active: true
+      });
+      
       const createdUser = await userService.createUser({
         ...newUser,
         active: true
@@ -66,9 +84,13 @@ const UsersPage = () => {
           password: '',
           role: 'usuario'
         });
+        alert('Usuario creado exitosamente');
+      } else {
+        alert('Error al crear usuario. Verifica que el email tenga un formato válido y no esté ya registrado.');
       }
     } catch (error) {
       console.error('Error al crear usuario:', error);
+      alert('Error al crear usuario. Verifica que el email tenga un formato válido y no esté ya registrado.');
     } finally {
       setIsLoading(false);
     }

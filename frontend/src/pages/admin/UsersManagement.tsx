@@ -86,6 +86,20 @@ export const UsersManagement: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validar el email antes de enviarlo
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email || '')) {
+      alert('Por favor, ingresa un email válido');
+      return;
+    }
+
+    // Validar que todos los campos obligatorios estén llenos
+    if (!formData.displayName || !formData.email || (!editingUser && !formData.password)) {
+      alert('Por favor, completa todos los campos obligatorios');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -94,17 +108,44 @@ export const UsersManagement: React.FC = () => {
         const updatedUser = await userService.updateUser(editingUser.id!, formData);
         if (updatedUser) {
           setUsers(users.map(user => user.id === editingUser.id ? { ...user, ...formData } : user));
+          handleCloseModal();
+          alert("Usuario actualizado exitosamente");
+        } else {
+          alert("Error al actualizar usuario. Por favor, inténtalo de nuevo.");
         }
       } else {
         // Create new user
-        const newUser = await userService.createUser(formData as User);
+        console.log("Intentando crear usuario con datos:", formData);
+        
+        // Asegúrate de que formData tenga todas las propiedades requeridas
+        const userData: User = {
+          ...formData,
+          role: formData.role || 'usuario',
+          active: formData.active !== undefined ? formData.active : true,
+          displayName: formData.displayName || '',
+          email: formData.email || '',
+          password: formData.password || ''
+        } as User;
+        
+        console.log("Datos finales que se enviarán al servidor:", userData);
+        
+        const newUser = await userService.createUser(userData);
+        console.log("Respuesta del servidor al crear usuario:", newUser);
+        
         if (newUser) {
-          setUsers([...users, newUser]);
+          // Actualizar la lista de usuarios solo si se recibió una respuesta válida
+          setUsers(prevUsers => [...prevUsers, newUser]);
+          // Cerrar el modal solo si la operación fue exitosa
+          handleCloseModal();
+          alert("Usuario creado exitosamente");
+        } else {
+          console.error("Error: No se recibió respuesta válida del servidor al crear usuario");
+          alert("Error al crear usuario. Verifica que el email tenga un formato válido y no esté ya registrado.");
         }
       }
-      handleCloseModal();
     } catch (error) {
-      console.error('Error saving user:', error);
+      console.error('Error detallado al guardar usuario:', error);
+      alert("Error al guardar usuario. Verifica que el email tenga un formato válido y no esté ya registrado.");
     } finally {
       setLoading(false);
     }

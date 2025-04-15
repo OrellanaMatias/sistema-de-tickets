@@ -75,10 +75,28 @@ const getUserById = async (id: number): Promise<User | null> => {
 const createUser = async (userData: User): Promise<User | null> => {
   try {
     const headers = getAuthHeader();
+    console.log("Enviando petición para crear usuario:", userData);
+    console.log("Headers:", headers);
+    console.log("URL:", `${API_URL}/users/admin`);
+    
     const response = await axios.post<User>(`${API_URL}/users/admin`, userData, { headers });
+    console.log("Respuesta exitosa del servidor:", response.data);
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error al crear usuario:', error);
+    if (error.response) {
+      // La petición fue hecha y el servidor respondió con un código de estado
+      // que no está en el rango 2xx
+      console.error('Datos de respuesta de error:', error.response.data);
+      console.error('Estado HTTP:', error.response.status);
+      console.error('Headers:', error.response.headers);
+    } else if (error.request) {
+      // La petición fue hecha pero no se recibió respuesta
+      console.error('No se recibió respuesta del servidor:', error.request);
+    } else {
+      // Algo ocurrió durante la configuración de la petición que desencadenó un error
+      console.error('Error durante la configuración de la petición:', error.message);
+    }
     return null;
   }
 };

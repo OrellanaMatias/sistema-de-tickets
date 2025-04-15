@@ -33,41 +33,81 @@ const getUserById = async (req, res) => {
 };
 
 const createUser = asyncHandler(async (req, res) => {
-  const { email, password, displayName, role } = req.body;
+  try {
+    console.log("Datos recibidos en createUser:", req.body);
+    console.log("URL de la solicitud:", req.originalUrl);
+    
+    const { email, password, displayName, role, active } = req.body;
 
-  if (!email || !password) {
-    res.status(400);
-    throw new Error('Por favor proporcione email y contraseña');
-  }
+    if (!email || !password) {
+      res.status(400);
+      throw new Error('Por favor proporcione email y contraseña');
+    }
 
-  const userExists = await User.findOne({ where: { email } });
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      console.log("Error de validación: El email no tiene un formato válido:", email);
+      return res.status(400).json({ error: 'El formato del email no es válido' });
+    }
 
-  if (userExists) {
-    res.status(400);
-    throw new Error('El usuario ya existe');
-  }
+    const userExists = await User.findOne({ where: { email } });
 
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
+    if (userExists) {
+      console.log("Error: El usuario ya existe:", email);
+      return res.status(400).json({ error: 'El usuario ya existe' });
+    }
 
-  const user = await User.create({
-    email,
-    displayName,
-    password: hashedPassword,
-    role
-  });
+    // Determinar si la solicitud proviene del panel de administración o del registro público
+    const isAdmin = req.originalUrl.includes('/admin');
+    
+    console.log("Creando usuario con datos:", { email, displayName, role, active, isAdmin });
+    
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-  if (user) {
-    res.status(201).json({
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      role: user.role,
-      token: generateToken(user.id)
+    const user = await User.create({
+      email,
+      displayName,
+      password: hashedPassword,
+      role: role || 'usuario',
+      active: active !== undefined ? active : true
     });
-  } else {
-    res.status(400);
-    throw new Error('Datos de usuario inválidos');
+
+    console.log("Usuario creado exitosamente:", user.id);
+
+    if (user) {
+      // Determinar qué información devolver según el origen de la solicitud
+      if (isAdmin) {
+        // Para solicitudes desde el panel de administración, devolver datos sin token
+        res.status(201).json({
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+          role: user.role,
+          active: user.active,
+          createdAt: user.createdAt
+        });
+      } else {
+        // Para solicitudes de registro público, incluir token de autenticación
+        res.status(201).json({
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+          role: user.role,
+          token: generateToken(user.id)
+        });
+      }
+    } else {
+      res.status(400);
+      throw new Error('Datos de usuario inválidos');
+    }
+  } catch (error) {
+    console.error("Error detallado al crear usuario:", error);
+    res.status(500).json({ 
+      error: error.message || 'Error en el servidor',
+      details: error.toString()
+    });
   }
 });
 
@@ -116,12 +156,11 @@ const deleteUser = async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
     
-    user.active = false;
-    await user.save();
+    await user.destroy();
     
-    res.json({ message: 'Usuario desactivado correctamente' });
+    res.json({ message: 'Usuario eliminado correctamente' });
   } catch (error) {
-    console.error('Error al desactivar usuario:', error);
+    console.error('Error al eliminar usuario:', error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 };
