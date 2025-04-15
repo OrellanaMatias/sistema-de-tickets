@@ -38,15 +38,15 @@ CREATE TABLE IF NOT EXISTS `Tickets` (
 -- Insertar usuarios de prueba solo si no existen y solo en entorno de desarrollo
 -- Contraseñas hasheadas con bcrypt (admin123, tecnico123, usuario123)
 INSERT INTO `Users` (`displayName`, `email`, `password`, `role`, `active`, `createdAt`, `updatedAt`)
-SELECT 'Administrador', 'admin@tickets.com', '$2a$12$atHJiijgbFQUnldY1p6GO.XA3XVI77RO4nSCo3Ki.WUpiO5nfiQ8u', 'admin', 1, NOW(), NOW()
+SELECT 'Matias Orellana', 'meorellanaramirez@gmail.com', '$2a$12$IpZXevwS.hWFA4a1J46NXeIK590aaXgKy65aG73KpGuUa39b0lC.a', 'admin', 1, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `role` = 'admin' LIMIT 1);
 
 INSERT INTO `Users` (`displayName`, `email`, `password`, `role`, `active`, `createdAt`, `updatedAt`)
-SELECT 'Tecnico de Soporte', 'tecnico@tickets.com', '$2a$12$kDpSa1UAKa7Ifs6/70XBmeuw.0yZHUzOnw2CRDPzEyWiB9j4C7COS', 'tecnico', 1, NOW(), NOW()
+SELECT 'Emanuel Orellana', 'meorellanaramirez@itel.edu.ar', '$2a$12$IpZXevwS.hWFA4a1J46NXeIK590aaXgKy65aG73KpGuUa39b0lC.a', 'tecnico', 1, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `role` = 'tecnico' LIMIT 1);
 
 INSERT INTO `Users` (`displayName`, `email`, `password`, `role`, `active`, `createdAt`, `updatedAt`)
-SELECT 'Usuario Regular', 'usuario@tickets.com', '$2a$12$NkAZZ6ae1/wxtPjFluYA7u0sy0vmWMc9MdxA/QusQvgpTh4ugS2fK', 'usuario', 1, NOW(), NOW()
+SELECT 'Oreo', 'orellana@gmail.com', '$2a$12$IpZXevwS.hWFA4a1J46NXeIK590aaXgKy65aG73KpGuUa39b0lC.a', 'usuario', 1, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM `Users` WHERE `role` = 'usuario' LIMIT 1);
 
 -- Otorgar permisos

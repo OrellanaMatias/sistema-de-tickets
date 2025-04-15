@@ -12,6 +12,17 @@ interface Toast {
   type: ToastType;
 }
 
+interface ConfirmModalProps {
+  isOpen: boolean;
+  title: string;
+  message: string | JSX.Element;
+  confirmText: string;
+  cancelText: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  type: 'danger' | 'warning' | 'info';
+}
+
 const UsersPage = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -19,6 +30,7 @@ const UsersPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [confirmModal, setConfirmModal] = useState<ConfirmModalProps | null>(null);
   const [newUser, setNewUser] = useState({
     displayName: '',
     email: '',
@@ -40,6 +52,16 @@ const UsersPage = () => {
   // Eliminar un toast específico
   const removeToast = (id: number) => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
+  // Mostrar modal de confirmación - Versión simplificada
+  const showConfirmation = (props: Omit<ConfirmModalProps, 'isOpen'>) => {
+    setConfirmModal({ ...props, isOpen: true });
+  };
+
+  // Cerrar modal de confirmación - Versión simplificada
+  const closeConfirmation = () => {
+    setConfirmModal(null);
   };
 
   // Cargar usuarios desde la API
@@ -138,26 +160,44 @@ const UsersPage = () => {
     // Buscar el usuario actual y su estado
     const user = users.find(u => u.id === id);
     if (!user) return;
-    
-    try {
-      setIsLoading(true);
-      // Invertir el estado actual
-      const success = await userService.toggleUserStatus(id, !user.active);
-      
-      if (success) {
-        setUsers(users.map(u => 
-          u.id === id ? { ...u, active: !u.active } : u
-        ));
-        showToast(`Usuario ${user.active ? 'desactivado' : 'activado'} correctamente`, 'success');
-      } else {
-        showToast(`Error al ${user.active ? 'desactivar' : 'activar'} usuario`, 'error');
-      }
-    } catch (error) {
-      console.error('Error al cambiar estado del usuario:', error);
-      showToast('Error al cambiar el estado del usuario', 'error');
-    } finally {
-      setIsLoading(false);
-    }
+
+    const displayName = user.displayName || user.email || 'Usuario';
+
+    // Confirmar acción mediante el modal personalizado
+    showConfirmation({
+      title: `${user.active ? 'Desactivar' : 'Activar'} usuario`,
+      message: (
+        <>
+          ¿Estás seguro de que deseas {user.active ? 'desactivar' : 'activar'} al usuario <span className="font-bold text-blue-600">{displayName}</span>?
+        </>
+      ),
+      confirmText: user.active ? 'Desactivar' : 'Activar',
+      cancelText: 'Cancelar',
+      type: 'warning',
+      onConfirm: async () => {
+        try {
+          closeConfirmation(); // Cerrar el modal inmediatamente
+          setIsLoading(true);
+          // Invertir el estado actual
+          const success = await userService.toggleUserStatus(id, !user.active);
+          
+          if (success) {
+            setUsers(users.map(u => 
+              u.id === id ? { ...u, active: !u.active } : u
+            ));
+            showToast(`Usuario ${user.active ? 'desactivado' : 'activado'} correctamente`, 'success');
+          } else {
+            showToast(`Error al ${user.active ? 'desactivar' : 'activar'} usuario`, 'error');
+          }
+        } catch (error) {
+          console.error('Error al cambiar estado del usuario:', error);
+          showToast('Error al cambiar el estado del usuario', 'error');
+        } finally {
+          setIsLoading(false);
+        }
+      },
+      onCancel: closeConfirmation
+    });
   };
 
   const deleteUser = async (id: number) => {
@@ -167,24 +207,44 @@ const UsersPage = () => {
       return;
     }
     
-    if (window.confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
-      try {
-        setIsLoading(true);
-        const success = await userService.deleteUser(id);
-        
-        if (success) {
-          setUsers(users.filter(u => u.id !== id));
-          showToast('Usuario eliminado correctamente', 'success');
-        } else {
+    // Buscar el usuario para mostrar sus datos en la confirmación
+    const user = users.find(u => u.id === id);
+    if (!user) return;
+
+    const displayName = user.displayName || user.email || 'Usuario';
+
+    // Mostrar el modal de confirmación personalizado
+    showConfirmation({
+      title: 'Eliminar usuario',
+      message: (
+        <>
+          ¿Estás seguro de que deseas eliminar al usuario <span className="font-bold text-red-600">{displayName}</span>? Esta acción no se puede deshacer.
+        </>
+      ),
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          closeConfirmation(); // Cerrar el modal inmediatamente
+          setIsLoading(true);
+          const success = await userService.deleteUser(id);
+          
+          if (success) {
+            setUsers(users.filter(u => u.id !== id));
+            showToast('Usuario eliminado correctamente', 'success');
+          } else {
+            showToast('Error al eliminar usuario', 'error');
+          }
+        } catch (error) {
+          console.error('Error al eliminar usuario:', error);
           showToast('Error al eliminar usuario', 'error');
+        } finally {
+          setIsLoading(false);
         }
-      } catch (error) {
-        console.error('Error al eliminar usuario:', error);
-        showToast('Error al eliminar usuario', 'error');
-      } finally {
-        setIsLoading(false);
-      }
-    }
+      },
+      onCancel: closeConfirmation
+    });
   };
 
   // Columnas para la tabla responsiva
@@ -299,6 +359,62 @@ const UsersPage = () => {
     );
   };
 
+  // Componente de Modal de Confirmación - Versión simplificada
+  const ConfirmModal = () => {
+    if (!confirmModal) return null;
+    
+    const { title, message, confirmText, cancelText, onConfirm, onCancel, type } = confirmModal;
+    
+    const confirmButtonColor = 
+      type === 'danger' ? 'bg-red-600 hover:bg-red-700' : 
+      type === 'warning' ? 'bg-amber-600 hover:bg-amber-700' : 
+      'bg-blue-600 hover:bg-blue-700';
+
+    const iconColor = 
+      type === 'danger' ? 'text-red-500' : 
+      type === 'warning' ? 'text-amber-500' : 
+      'text-blue-500';
+
+    const icon = 
+      type === 'danger' ? 'fa-exclamation-circle' : 
+      type === 'warning' ? 'fa-exclamation-triangle' : 
+      'fa-info-circle';
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <div className="flex items-center mb-4">
+            <div className={`${iconColor} text-2xl mr-3`}>
+              <i className={`fas ${icon}`}></i>
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900">{title}</h3>
+          </div>
+          <div className="mb-6">
+            {typeof message === 'string' ? (
+              <p className="text-gray-700">{message}</p>
+            ) : (
+              message
+            )}
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              onClick={onCancel}
+            >
+              {cancelText}
+            </button>
+            <button
+              className={`px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white ${confirmButtonColor} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500`}
+              onClick={onConfirm}
+            >
+              {confirmText}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <AdminLayout>
       <div className="container mx-auto px-4 py-8">
@@ -310,6 +426,9 @@ const UsersPage = () => {
             </div>
           ))}
         </div>
+
+        {/* Modal de confirmación */}
+        {confirmModal && <ConfirmModal />}
 
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-2xl font-bold text-gray-800">Gestión de Usuarios</h1>
