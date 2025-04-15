@@ -28,11 +28,29 @@ CREATE TABLE IF NOT EXISTS `Tickets` (
   `priority` enum('baja','media','alta') NOT NULL DEFAULT 'media',
   `category` enum('hardware','software','red','impresoras','otro') NOT NULL DEFAULT 'otro',
   `userId` int NOT NULL,
+  `assignedToId` int DEFAULT NULL,
   `createdAt` datetime NOT NULL,
   `updatedAt` datetime NOT NULL,
   PRIMARY KEY (`id`),
   KEY `userId` (`userId`),
-  CONSTRAINT `Tickets_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `Users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+  KEY `assignedToId` (`assignedToId`),
+  CONSTRAINT `Tickets_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `Users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `Tickets_ibfk_2` FOREIGN KEY (`assignedToId`) REFERENCES `Users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Tabla de comentarios
+CREATE TABLE IF NOT EXISTS `Comments` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `text` text NOT NULL,
+  `userId` int NOT NULL,
+  `ticketId` int NOT NULL,
+  `createdAt` datetime NOT NULL,
+  `updatedAt` datetime NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `userId` (`userId`),
+  KEY `ticketId` (`ticketId`),
+  CONSTRAINT `Comments_ibfk_1` FOREIGN KEY (`userId`) REFERENCES `Users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `Comments_ibfk_2` FOREIGN KEY (`ticketId`) REFERENCES `Tickets` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Insertar usuarios de prueba solo si no existen y solo en entorno de desarrollo

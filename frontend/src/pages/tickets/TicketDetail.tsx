@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import ticketService from '../../services/ticketService';
+import ticketService, { TicketComment } from '../../services/ticketService';
 import authService from '../../services/authService';
 import { AdminLayout } from '../../components/AdminLayout';
 import { TechnicianLayout } from '../../components/TechnicianLayout';
@@ -27,26 +27,22 @@ interface Ticket {
   };
 }
 
-interface Comment {
-  id: number;
-  text: string;
-  user: string;
-  timestamp: string;
-}
-
 const TicketDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [ticket, setTicket] = useState<Ticket | null>(null);
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<TicketComment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [commentsLoading, setCommentsLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<'status' | 'assign' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'status' | 'assign' | 'deleteComment' | null>(null);
   const [newStatus, setNewStatus] = useState<'abierto' | 'en_progreso' | 'cerrado' | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'tecnico' | 'usuario' | null>(null);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [selectedCommentId, setSelectedCommentId] = useState<number | null>(null);
 
   useEffect(() => {
     const user = authService.getUser();
@@ -70,22 +66,8 @@ const TicketDetail: React.FC = () => {
           id: Number(data.id)
         });
         
-        // Aquí se cargarían los comentarios del ticket
-        // Por ahora usamos datos de ejemplo
-        setComments([
-          {
-            id: 1,
-            text: '¿Has intentado reiniciar la impresora?',
-            user: data.assignedTo?.displayName || 'Técnico',
-            timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toLocaleString()
-          },
-          {
-            id: 2,
-            text: 'Sí, ya lo intenté pero sigue sin funcionar.',
-            user: data.creator?.displayName || 'Usuario',
-            timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toLocaleString()
-          }
-        ]);
+        // Cargar comentarios reales
+        fetchComments();
       }
     } catch (error) {
       console.error('Error al cargar el ticket:', error);
@@ -94,21 +76,34 @@ const TicketDetail: React.FC = () => {
     }
   };
 
-  const handleAddComment = (e: React.FormEvent) => {
+  const fetchComments = async () => {
+    if (!id) return;
+    
+    setCommentsLoading(true);
+    try {
+      const commentsData = await ticketService.getTicketComments(Number(id));
+      setComments(commentsData);
+    } catch (error) {
+      console.error('Error al cargar comentarios:', error);
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newComment.trim() === '') return;
+    if (newComment.trim() === '' || !id) return;
     
-    const comment: Comment = {
-      id: comments.length + 1,
-      text: newComment,
-      user: authService.getUser()?.displayName || 'Usuario',
-      timestamp: new Date().toLocaleString()
-    };
-    
-    setComments([...comments, comment]);
-    setNewComment('');
-    
-    // Aquí iría la lógica para enviar el comentario al backend
+    setCommentSubmitting(true);
+    try {
+      const comment = await ticketService.createComment(Number(id), newComment);
+      setComments(prev => [...prev, comment]);
+      setNewComment('');
+    } catch (error) {
+      console.error('Error al añadir comentario:', error);
+    } finally {
+      setCommentSubmitting(false);
+    }
   };
 
   const openStatusConfirm = (status: 'abierto' | 'en_progreso' | 'cerrado') => {
@@ -119,6 +114,12 @@ const TicketDetail: React.FC = () => {
 
   const openAssignConfirm = () => {
     setConfirmAction('assign');
+    setShowConfirmModal(true);
+  };
+
+  const openDeleteCommentConfirm = (commentId: number) => {
+    setSelectedCommentId(commentId);
+    setConfirmAction('deleteComment');
     setShowConfirmModal(true);
   };
 
@@ -149,6 +150,23 @@ const TicketDetail: React.FC = () => {
     } finally {
       setActionLoading(false);
       setShowConfirmModal(false);
+    }
+  };
+
+  const handleDeleteComment = async () => {
+    if (!selectedCommentId) return;
+    
+    setActionLoading(true);
+    try {
+      await ticketService.deleteComment(selectedCommentId);
+      // Actualizar la lista de comentarios
+      setComments(prev => prev.filter(comment => comment.id !== selectedCommentId));
+    } catch (error) {
+      console.error('Error al eliminar comentario:', error);
+    } finally {
+      setActionLoading(false);
+      setShowConfirmModal(false);
+      setSelectedCommentId(null);
     }
   };
 
@@ -214,6 +232,10 @@ const TicketDetail: React.FC = () => {
       title = 'Asignar ticket';
       message = `¿Estás seguro de que quieres asignarte el ticket "${ticket?.title}"?`;
       actionFunction = handleAssignToSelf;
+    } else if (confirmAction === 'deleteComment') {
+      title = 'Eliminar comentario';
+      message = '¿Estás seguro de que quieres eliminar este comentario?';
+      actionFunction = handleDeleteComment;
     }
 
     return (
@@ -247,6 +269,71 @@ const TicketDetail: React.FC = () => {
             </button>
           </div>
         </div>
+      </div>
+    );
+  };
+
+  const renderComments = () => {
+    if (commentsLoading) {
+      return (
+        <div className="py-4 text-center">
+          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+          <p className="mt-2 text-gray-600">Cargando comentarios...</p>
+        </div>
+      );
+    }
+
+    if (comments.length === 0) {
+      return (
+        <div className="py-6 text-center border-t">
+          <p className="text-gray-500">No hay comentarios para este ticket.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4 mt-4">
+        {comments.map(comment => (
+          <div key={comment.id} className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex justify-between items-start">
+              <div className="flex items-start space-x-3">
+                <div className="bg-indigo-100 text-indigo-800 p-2 rounded-full">
+                  <span className="text-sm font-medium">
+                    {comment.user?.displayName?.charAt(0) || 'U'}
+                  </span>
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">{comment.user?.displayName}</p>
+                  <p className="text-sm text-gray-500">
+                    {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : 'Fecha desconocida'} 
+                    <span className="mx-1">•</span>
+                    <span className={
+                      comment.user?.role === 'admin' ? 'text-red-600' :
+                      comment.user?.role === 'tecnico' ? 'text-blue-600' : ''
+                    }>
+                      {comment.user?.role === 'admin' ? 'Administrador' :
+                       comment.user?.role === 'tecnico' ? 'Técnico' : 'Usuario'}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              {(userRole === 'admin' || (comment.userId === currentUserId)) && (
+                <button 
+                  onClick={() => openDeleteCommentConfirm(comment.id!)}
+                  className="text-red-500 hover:text-red-700"
+                  title="Eliminar comentario"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"></path>
+                  </svg>
+                </button>
+              )}
+            </div>
+            <div className="mt-2 text-gray-700 whitespace-pre-wrap">
+              {comment.text}
+            </div>
+          </div>
+        ))}
       </div>
     );
   };
@@ -390,53 +477,38 @@ const TicketDetail: React.FC = () => {
           </div>
           
           {/* Comentarios */}
-          <div className="p-6">
-            <h2 className="text-lg font-medium mb-4">Comentarios</h2>
-            {comments.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No hay comentarios para este ticket.
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {comments.map((comment) => (
-                  <div key={comment.id} className="flex space-x-3">
-                    <div className="flex-shrink-0">
-                      <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold">
-                        {comment.user.charAt(0).toUpperCase()}
-                      </div>
-                    </div>
-                    <div className="flex-1 bg-gray-50 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <h3 className="text-sm font-medium">{comment.user}</h3>
-                        <span className="text-xs text-gray-500">{comment.timestamp}</span>
-                      </div>
-                      <p className="text-sm text-gray-700 whitespace-pre-line">{comment.text}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="mt-8">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Comentarios</h3>
             
-            {/* Formulario de comentario */}
+            {renderComments()}
+            
+            {/* Formulario para añadir comentario */}
             <form onSubmit={handleAddComment} className="mt-6">
-              <label htmlFor="comment" className="block text-sm font-medium text-gray-700 mb-2">
-                Añadir comentario
-              </label>
-              <textarea
-                id="comment"
-                rows={3}
-                className="shadow-sm block w-full focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm border border-gray-300 rounded-md p-2"
-                placeholder="Escribe tu comentario aquí..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-              ></textarea>
+              <div className="mt-1">
+                <textarea
+                  rows={3}
+                  className="shadow-sm block w-full sm:text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                  placeholder="Escribe un comentario..."
+                  value={newComment}
+                  onChange={e => setNewComment(e.target.value)}
+                  disabled={commentSubmitting}
+                ></textarea>
+              </div>
               <div className="mt-3 flex justify-end">
                 <button
                   type="submit"
                   className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                  disabled={!newComment.trim()}
+                  disabled={commentSubmitting || newComment.trim() === ''}
                 >
-                  Enviar comentario
+                  {commentSubmitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Enviando...
+                    </>
+                  ) : 'Enviar comentario'}
                 </button>
               </div>
             </form>

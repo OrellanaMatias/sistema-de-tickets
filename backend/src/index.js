@@ -7,9 +7,8 @@ const userRoutes = require('./routes/userRoutes');
 const ticketRoutes = require('./routes/ticketRoutes');
 const statsRoutes = require('./routes/statsRoutes');
 const configRoutes = require('./routes/configRoutes');
-const User = require('./models/User');
-const Ticket = require('./models/Ticket');
-const Config = require('./models/Config');
+const commentRoutes = require('./routes/commentRoutes');
+const models = require('./models');
 const bcryptjs = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
@@ -48,6 +47,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/comments', commentRoutes);
 
 app.get('/', (req, res) => {
   res.json({ message: 'API del Sistema de Tickets' });
@@ -68,7 +68,7 @@ const connectWithRetry = async (maxRetries = 5, retryDelay = 5000) => {
       console.log('Modelos sincronizados correctamente');
       
       // Inicializar configuración del sistema
-      await Config.ensureConfig();
+      await models.Config.ensureConfig();
       
       return true;
     } catch (error) {

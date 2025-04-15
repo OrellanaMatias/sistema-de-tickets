@@ -58,6 +58,21 @@ export interface Ticket {
   }
 }
 
+export interface TicketComment {
+  id?: number;
+  text: string;
+  userId?: number;
+  ticketId?: number;
+  user?: {
+    id: number;
+    displayName: string;
+    email: string;
+    role: string;
+  };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 // Obtener todos los tickets (para admin y técnicos)
 const getAllTickets = async (): Promise<Ticket[]> => {
   try {
@@ -249,6 +264,76 @@ const assignTicketToSelf = async (ticketId: number): Promise<Ticket> => {
   }
 };
 
+// Funciones para gestionar comentarios
+const getTicketComments = async (ticketId: number): Promise<TicketComment[]> => {
+  try {
+    const token = authService.getToken();
+    const response = await fetch(`${API_URL}/comments/ticket/${ticketId}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error al obtener comentarios');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error en getTicketComments:', error);
+    throw error;
+  }
+};
+
+const createComment = async (ticketId: number, text: string): Promise<TicketComment> => {
+  try {
+    const token = authService.getToken();
+    const response = await fetch(`${API_URL}/comments/ticket/${ticketId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ text })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error al crear comentario');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error en createComment:', error);
+    throw error;
+  }
+};
+
+const deleteComment = async (commentId: number): Promise<void> => {
+  try {
+    const token = authService.getToken();
+    const response = await fetch(`${API_URL}/comments/${commentId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Error al eliminar comentario');
+    }
+  } catch (error) {
+    console.error('Error en deleteComment:', error);
+    throw error;
+  }
+};
+
+// Exportar todos los servicios
 const ticketService = {
   getAllTickets,
   getUserTickets,
@@ -257,11 +342,11 @@ const ticketService = {
   updateTicket,
   updateTicketStatus,
   assignTicket,
+  assignTicketToSelf,
   getUserTicketStats,
-  getTechnicianTickets,
-  getTechnicianTicketStats,
-  getPendingTickets,
-  assignTicketToSelf
+  getTicketComments,
+  createComment,
+  deleteComment
 };
 
 export default ticketService; 

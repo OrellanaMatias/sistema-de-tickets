@@ -51,4 +51,7 @@ Ticket.belongsTo(User, {
   as: 'assignedTo'
 });
 
-module.exports = Ticket; 
+module.exports = Ticket;
+
+// La relación con los comentarios se establecerá después de exportar
+// para evitar el ciclo de dependencias 
