@@ -11,7 +11,18 @@ const getAllTickets = async (req, res) => {
       ],
       order: [['updatedAt', 'DESC']]
     });
-    return res.status(200).json(tickets);
+
+    // Transformar los campos de fecha para el frontend
+    const transformedTickets = tickets.map(ticket => {
+      const plainTicket = ticket.get({ plain: true });
+      return {
+        ...plainTicket,
+        created_at: plainTicket.createdAt,
+        updated_at: plainTicket.updatedAt
+      };
+    });
+
+    return res.status(200).json(transformedTickets);
   } catch (error) {
     console.error('Error al obtener tickets:', error);
     return res.status(500).json({ message: 'Error al obtener tickets', error: error.message });
@@ -33,7 +44,18 @@ const getUserTickets = async (req, res) => {
     });
     
     console.log('[DEBUG] getUserTickets - Tickets encontrados:', tickets.length);
-    return res.status(200).json(tickets);
+
+    // Transformar los campos de fecha para el frontend
+    const transformedTickets = tickets.map(ticket => {
+      const plainTicket = ticket.get({ plain: true });
+      return {
+        ...plainTicket,
+        created_at: plainTicket.createdAt,
+        updated_at: plainTicket.updatedAt
+      };
+    });
+    
+    return res.status(200).json(transformedTickets);
   } catch (error) {
     console.error('Error al obtener tickets del usuario:', error);
     return res.status(500).json({ message: 'Error al obtener tickets del usuario', error: error.message });
@@ -65,7 +87,16 @@ const getTicketById = async (req, res) => {
     }
     
     console.log('[DEBUG] getTicketById - Ticket encontrado:', ticket.id);
-    return res.status(200).json(ticket);
+
+    // Transformar los campos de fecha para el frontend
+    const plainTicket = ticket.get({ plain: true });
+    const transformedTicket = {
+      ...plainTicket,
+      created_at: plainTicket.createdAt,
+      updated_at: plainTicket.updatedAt
+    };
+    
+    return res.status(200).json(transformedTicket);
   } catch (error) {
     console.error(`Error al obtener ticket ${req.params.id}:`, error);
     return res.status(500).json({ message: 'Error al obtener detalles del ticket', error: error.message });
@@ -112,7 +143,15 @@ const createTicket = async (req, res) => {
       ]
     });
     
-    return res.status(201).json(ticketWithRelations);
+    // Transformar los campos de fecha para el frontend
+    const plainTicket = ticketWithRelations.get({ plain: true });
+    const transformedTicket = {
+      ...plainTicket,
+      created_at: plainTicket.createdAt,
+      updated_at: plainTicket.updatedAt
+    };
+    
+    return res.status(201).json(transformedTicket);
   } catch (error) {
     console.error('Error al crear ticket:', error);
     return res.status(500).json({ message: 'Error al crear ticket', error: error.message });
@@ -137,7 +176,15 @@ const updateTicket = async (req, res) => {
       category: category || ticket.category
     });
     
-    return res.status(200).json(ticket);
+    // Transformar los campos de fecha para el frontend
+    const updatedTicket = ticket.get({ plain: true });
+    const transformedTicket = {
+      ...updatedTicket,
+      created_at: updatedTicket.createdAt,
+      updated_at: updatedTicket.updatedAt
+    };
+    
+    return res.status(200).json(transformedTicket);
   } catch (error) {
     console.error(`Error al actualizar ticket ${req.params.id}:`, error);
     return res.status(500).json({ message: 'Error al actualizar ticket', error: error.message });
@@ -161,7 +208,18 @@ const updateTicketStatus = async (req, res) => {
     
     await ticket.update({ status });
     
-    return res.status(200).json({ message: 'Estado actualizado correctamente', ticket });
+    // Transformar los campos de fecha para el frontend
+    const updatedTicket = ticket.get({ plain: true });
+    const transformedTicket = {
+      ...updatedTicket,
+      created_at: updatedTicket.createdAt,
+      updated_at: updatedTicket.updatedAt
+    };
+    
+    return res.status(200).json({ 
+      message: 'Estado actualizado correctamente', 
+      ticket: transformedTicket 
+    });
   } catch (error) {
     console.error(`Error al actualizar estado del ticket ${req.params.id}:`, error);
     return res.status(500).json({ message: 'Error al actualizar estado', error: error.message });
@@ -193,9 +251,17 @@ const assignTicket = async (req, res) => {
       status: technicianId ? 'en_progreso' : 'abierto'
     });
     
+    // Transformar los campos de fecha para el frontend
+    const updatedTicket = ticket.get({ plain: true });
+    const transformedTicket = {
+      ...updatedTicket,
+      created_at: updatedTicket.createdAt,
+      updated_at: updatedTicket.updatedAt
+    };
+    
     return res.status(200).json({ 
       message: technicianId ? 'Ticket asignado correctamente' : 'Ticket desasignado',
-      ticket
+      ticket: transformedTicket
     });
   } catch (error) {
     console.error(`Error al asignar ticket ${req.params.id}:`, error);
