@@ -1,4 +1,4 @@
-# Sistema de Gestión de Tickets de Soporte Técnico
+# Sistema de tickets
 
 Un sistema completo para la gestión de tickets de soporte técnico, desarrollado con React.js para el frontend y Node.js/Express para el backend.
 
