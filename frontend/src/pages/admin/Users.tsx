@@ -4,18 +4,43 @@ import ResponsiveTable from '../../components/ResponsiveTable';
 import userService, { User } from '../../services/userService';
 import authService from '../../services/authService';
 
+type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+interface Toast {
+  id: number;
+  message: string;
+  type: ToastType;
+}
+
 const UsersPage = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const [newUser, setNewUser] = useState({
     displayName: '',
     email: '',
     password: '',
     role: 'usuario'
   });
+
+  // Mostrar una notificación toast
+  const showToast = (message: string, type: ToastType = 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    
+    // Auto-eliminar después de 3 segundos
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id));
+    }, 3000);
+  };
+
+  // Eliminar un toast específico
+  const removeToast = (id: number) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
 
   // Cargar usuarios desde la API
   useEffect(() => {
@@ -31,6 +56,7 @@ const UsersPage = () => {
         setUsers(usersData);
       } catch (error) {
         console.error('Error al cargar usuarios:', error);
+        showToast('Error al cargar la lista de usuarios', 'error');
       } finally {
         setIsLoading(false);
       }
@@ -58,13 +84,13 @@ const UsersPage = () => {
     // Validar el email antes de enviarlo
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(newUser.email)) {
-      alert('Por favor, ingresa un email válido');
+      showToast('Por favor, ingresa un email válido', 'error');
       return;
     }
 
     // Validar que todos los campos obligatorios estén llenos
     if (!newUser.displayName || !newUser.email || !newUser.password) {
-      alert('Por favor, completa todos los campos obligatorios');
+      showToast('Por favor, completa todos los campos obligatorios', 'warning');
       return;
     }
 
@@ -90,13 +116,13 @@ const UsersPage = () => {
           password: '',
           role: 'usuario'
         });
-        alert('Usuario creado exitosamente');
+        showToast('Usuario creado exitosamente', 'success');
       } else {
-        alert('Error al crear usuario. Verifica que el email tenga un formato válido y no esté ya registrado.');
+        showToast('Error al crear usuario. Verifica que el email tenga un formato válido y no esté ya registrado.', 'error');
       }
     } catch (error) {
       console.error('Error al crear usuario:', error);
-      alert('Error al crear usuario. Verifica que el email tenga un formato válido y no esté ya registrado.');
+      showToast('Error al crear usuario. Verifica que el email tenga un formato válido y no esté ya registrado.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -105,7 +131,7 @@ const UsersPage = () => {
   const toggleUserStatus = async (id: number) => {
     // Verificar si está intentando desactivarse a sí mismo
     if (currentUser && currentUser.id === id) {
-      alert("No puedes desactivar tu propia cuenta. Esto te impediría acceder al sistema.");
+      showToast('No puedes desactivar tu propia cuenta. Esto te impediría acceder al sistema.', 'warning');
       return;
     }
     
@@ -122,9 +148,13 @@ const UsersPage = () => {
         setUsers(users.map(u => 
           u.id === id ? { ...u, active: !u.active } : u
         ));
+        showToast(`Usuario ${user.active ? 'desactivado' : 'activado'} correctamente`, 'success');
+      } else {
+        showToast(`Error al ${user.active ? 'desactivar' : 'activar'} usuario`, 'error');
       }
     } catch (error) {
       console.error('Error al cambiar estado del usuario:', error);
+      showToast('Error al cambiar el estado del usuario', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -133,7 +163,7 @@ const UsersPage = () => {
   const deleteUser = async (id: number) => {
     // Verificar si está intentando eliminarse a sí mismo
     if (currentUser && currentUser.id === id) {
-      alert("No puedes eliminar tu propia cuenta. Esto te impediría acceder al sistema.");
+      showToast('No puedes eliminar tu propia cuenta. Esto te impediría acceder al sistema.', 'warning');
       return;
     }
     
@@ -144,9 +174,13 @@ const UsersPage = () => {
         
         if (success) {
           setUsers(users.filter(u => u.id !== id));
+          showToast('Usuario eliminado correctamente', 'success');
+        } else {
+          showToast('Error al eliminar usuario', 'error');
         }
       } catch (error) {
         console.error('Error al eliminar usuario:', error);
+        showToast('Error al eliminar usuario', 'error');
       } finally {
         setIsLoading(false);
       }
@@ -235,9 +269,48 @@ const UsersPage = () => {
     }
   ];
 
+  // Componente Toast para mostrar notificaciones
+  const Toast = ({ toast }: { toast: Toast }) => {
+    const { id, message, type } = toast;
+    
+    const bgColor = 
+      type === 'success' ? 'bg-green-500' : 
+      type === 'error' ? 'bg-red-500' :
+      type === 'warning' ? 'bg-amber-500' : 'bg-blue-500';
+      
+    const icon = 
+      type === 'success' ? 'fa-check-circle' : 
+      type === 'error' ? 'fa-exclamation-circle' :
+      type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle';
+    
+    return (
+      <div className={`${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center justify-between`}>
+        <div className="flex items-center">
+          <i className={`fas ${icon} mr-3`}></i>
+          <span>{message}</span>
+        </div>
+        <button 
+          onClick={() => removeToast(id)} 
+          className="ml-4 text-white hover:text-gray-200 focus:outline-none"
+        >
+          <i className="fas fa-times"></i>
+        </button>
+      </div>
+    );
+  };
+
   return (
     <AdminLayout>
       <div className="container mx-auto px-4 py-8">
+        {/* Contenedor de Toasts */}
+        <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 w-auto max-w-md">
+          {toasts.map(toast => (
+            <div key={toast.id} className="animate-fade-in-down">
+              <Toast toast={toast} />
+            </div>
+          ))}
+        </div>
+
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-2xl font-bold text-gray-800">Gestión de Usuarios</h1>
           <button 
