@@ -11,6 +11,10 @@ const TecnicoTicketList = () => {
   const [filteredTickets, setFilteredTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'assign' | 'status' | null>(null);
+  const [newStatus, setNewStatus] = useState<'abierto' | 'en_progreso' | 'cerrado' | null>(null);
 
   useEffect(() => {
     fetchTickets();
@@ -58,6 +62,34 @@ const TecnicoTicketList = () => {
     setFilteredTickets(filtered);
   };
 
+  const openAssignConfirmModal = (ticket: Ticket) => {
+    setSelectedTicket(ticket);
+    setConfirmAction('assign');
+    setShowConfirmModal(true);
+  };
+
+  const openStatusConfirmModal = (ticket: Ticket, status: 'abierto' | 'en_progreso' | 'cerrado') => {
+    setSelectedTicket(ticket);
+    setConfirmAction('status');
+    setNewStatus(status);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!selectedTicket) return;
+    
+    if (confirmAction === 'assign') {
+      await handleAssignToSelf(selectedTicket.id!);
+    } else if (confirmAction === 'status' && newStatus) {
+      await handleUpdateStatus(selectedTicket.id!, newStatus);
+    }
+    
+    setShowConfirmModal(false);
+    setSelectedTicket(null);
+    setConfirmAction(null);
+    setNewStatus(null);
+  };
+
   const handleAssignToSelf = async (ticketId: number) => {
     setActionLoading(ticketId);
     try {
@@ -98,6 +130,46 @@ const TecnicoTicketList = () => {
       case 'cerrado': return 'Cerrado';
       default: return status;
     }
+  };
+
+  const confirmationModal = () => {
+    if (!showConfirmModal || !selectedTicket) return null;
+
+    let title = '';
+    let message = '';
+    
+    if (confirmAction === 'assign') {
+      title = 'Confirmar asignación';
+      message = `¿Estás seguro de que quieres asignarte el ticket "${selectedTicket.title}"?`;
+    } else if (confirmAction === 'status' && newStatus) {
+      title = 'Confirmar cambio de estado';
+      message = `¿Estás seguro de que quieres cambiar el estado del ticket "${selectedTicket.title}" a "${getStatusName(newStatus)}"?`;
+    }
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-2">{title}</h3>
+            <p className="text-gray-500 mb-4">{message}</p>
+            <div className="flex flex-wrap gap-3 justify-end">
+              <button 
+                onClick={() => setShowConfirmModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleConfirmAction}
+                className="px-4 py-2 border border-transparent rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -192,7 +264,7 @@ const TecnicoTicketList = () => {
                   
                   {!ticket.assignedToId && (
                     <button 
-                      onClick={() => handleAssignToSelf(ticket.id!)}
+                      onClick={() => openAssignConfirmModal(ticket)}
                       disabled={actionLoading === ticket.id}
                       className="inline-flex items-center justify-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                     >
@@ -206,7 +278,7 @@ const TecnicoTicketList = () => {
                   
                   {ticket.status === 'abierto' && (
                     <button 
-                      onClick={() => handleUpdateStatus(ticket.id!, 'en_progreso')}
+                      onClick={() => openStatusConfirmModal(ticket, 'en_progreso')}
                       disabled={actionLoading === ticket.id}
                       className="inline-flex items-center justify-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-yellow-500 hover:bg-yellow-600"
                     >
@@ -220,7 +292,7 @@ const TecnicoTicketList = () => {
                   
                   {ticket.status === 'en_progreso' && (
                     <button 
-                      onClick={() => handleUpdateStatus(ticket.id!, 'cerrado')}
+                      onClick={() => openStatusConfirmModal(ticket, 'cerrado')}
                       disabled={actionLoading === ticket.id}
                       className="inline-flex items-center justify-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-500 hover:bg-green-600"
                     >
@@ -236,6 +308,8 @@ const TecnicoTicketList = () => {
             ))}
           </div>
         )}
+        
+        {confirmationModal()}
       </div>
     </TechnicianLayout>
   );

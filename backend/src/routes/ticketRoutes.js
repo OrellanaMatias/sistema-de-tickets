@@ -36,7 +36,14 @@ router.patch('/:id/assign-self', checkRole(['tecnico']), (req, res) => {
   // Obtener el ID del técnico autenticado
   const technicianId = req.user.id;
   
-  // Pasar el ID del técnico como technicianId para usar la función assignTicket existente
+  // Verificar que el usuario sea un técnico
+  if (req.user.role !== 'tecnico') {
+    return res.status(403).json({ message: 'Solo los técnicos pueden auto-asignarse tickets' });
+  }
+  
+  console.log(`[DEBUG] Auto-asignación: Técnico ${technicianId} intentando asignarse ticket ${req.params.id}`);
+  
+  // Asignar el ID del técnico para usar la función assignTicket existente
   req.body.technicianId = technicianId;
   
   // Llamar a la función assignTicket

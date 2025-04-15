@@ -237,12 +237,12 @@ const getPendingTickets = async (): Promise<Ticket[]> => {
 const assignTicketToSelf = async (ticketId: number): Promise<Ticket> => {
   try {
     const headers = getAuthHeader();
-    const response = await axios.patch<Ticket>(
+    const response = await axios.patch<{ ticket: Ticket }>(
       `${API_URL}/tickets/${ticketId}/assign-self`, 
       {}, 
       { headers }
     );
-    return response.data;
+    return response.data.ticket;
   } catch (error) {
     console.error('Error al asignar ticket:', error);
     throw error;
