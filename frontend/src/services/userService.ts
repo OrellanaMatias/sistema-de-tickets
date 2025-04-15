@@ -114,14 +114,24 @@ const updateUser = async (id: number, userData: Partial<User>): Promise<User | n
 };
 
 // Eliminar un usuario
-const deleteUser = async (id: number): Promise<boolean> => {
+const deleteUser = async (id: number): Promise<{success: boolean, message?: string}> => {
   try {
     const headers = getAuthHeader();
     await axios.delete(`${API_URL}/users/admin/${id}`, { headers });
-    return true;
-  } catch (error) {
+    return { success: true };
+  } catch (error: any) {
     console.error(`Error al eliminar usuario con ID ${id}:`, error);
-    return false;
+    
+    // Extraer el mensaje de error del servidor si está disponible
+    let errorMessage = 'Error al eliminar el usuario';
+    if (error.response && error.response.data) {
+      errorMessage = error.response.data.message || error.response.data.error || errorMessage;
+    }
+    
+    return { 
+      success: false, 
+      message: errorMessage
+    };
   }
 };
 

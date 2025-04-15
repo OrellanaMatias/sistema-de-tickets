@@ -156,12 +156,61 @@ const deleteUser = async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
     
-    await user.destroy();
+    // Primero verificamos si hay tickets asignados (para técnicos)
+    if (user.role === 'tecnico') {
+      const Ticket = require('../models/Ticket');
+      const ticketsAsignados = await Ticket.count({
+        where: { assignedToId: userId }
+      });
+      
+      if (ticketsAsignados > 0) {
+        return res.status(400).json({ 
+          error: 'No se puede eliminar este técnico porque tiene tickets asignados', 
+          message: 'Antes de eliminar este técnico, reasigna o desasigna sus tickets.'
+        });
+      }
+    }
     
-    res.json({ message: 'Usuario eliminado correctamente' });
+    // Eliminar automáticamente los comentarios del usuario
+    try {
+      const Comment = require('../models/Comment');
+      const { sequelize } = require('../models/Comment');
+      
+      // Usar una transacción para asegurar que todo se realiza de forma atómica
+      const transaction = await sequelize.transaction();
+      
+      try {
+        // Eliminar comentarios del usuario
+        await Comment.destroy({
+          where: { userId: userId },
+          transaction
+        });
+        
+        // Eliminar el usuario
+        await user.destroy({ transaction });
+        
+        // Confirmar transacción
+        await transaction.commit();
+        
+        return res.json({ 
+          message: 'Usuario eliminado correctamente',
+          details: 'También se han eliminado todos sus comentarios asociados'
+        });
+      } catch (error) {
+        // Revertir cambios si hay algún error
+        await transaction.rollback();
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error durante la eliminación:', error);
+      return res.status(500).json({ 
+        error: 'Error al eliminar el usuario', 
+        message: 'Ocurrió un problema al intentar eliminar los comentarios del usuario.'
+      });
+    }
   } catch (error) {
     console.error('Error al eliminar usuario:', error);
-    res.status(500).json({ error: 'Error en el servidor' });
+    res.status(500).json({ error: 'Error en el servidor', message: error.message });
   }
 };
 

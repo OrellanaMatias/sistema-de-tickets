@@ -228,13 +228,14 @@ const UsersPage = () => {
         try {
           closeConfirmation(); // Cerrar el modal inmediatamente
           setIsLoading(true);
-          const success = await userService.deleteUser(id);
+          const result = await userService.deleteUser(id);
           
-          if (success) {
+          if (result.success) {
             setUsers(users.filter(u => u.id !== id));
             showToast('Usuario eliminado correctamente', 'success');
           } else {
-            showToast('Error al eliminar usuario', 'error');
+            // Mostrar el mensaje de error específico devuelto por el servidor
+            showToast(result.message || 'Error al eliminar usuario', 'error');
           }
         } catch (error) {
           console.error('Error al eliminar usuario:', error);
