@@ -81,23 +81,6 @@ sistema-tickets/
 └── docker-compose.yml     # Configuración de Docker
 ```
 
-## Usuarios por Defecto
-
-El sistema se inicializa con los siguientes usuarios predeterminados:
-
-- **Administrador**: 
-  - Email: admin@tickets.com
-  - Contraseña: admin123
-
-- **Técnico**: 
-  - Email: tecnico@tickets.com
-  - Contraseña: tecnico123
-
-- **Usuario**: 
-  - Email: usuario@tickets.com
-  - Contraseña: usuario123
-
-
 ## Licencia
 
 Este proyecto está licenciado bajo [MIT License](LICENSE). 
