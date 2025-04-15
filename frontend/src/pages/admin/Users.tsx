@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { AdminLayout } from '../../components/AdminLayout';
 import ResponsiveTable from '../../components/ResponsiveTable';
 import userService, { User } from '../../services/userService';
+import authService from '../../services/authService';
 
 const UsersPage = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [newUser, setNewUser] = useState({
     displayName: '',
     email: '',
@@ -20,6 +22,10 @@ const UsersPage = () => {
     const fetchUsers = async () => {
       setIsLoading(true);
       try {
+        // Obtener el usuario actual
+        const userData = authService.getUser();
+        setCurrentUser(userData);
+        
         const usersData = await userService.getUsers();
         console.log("Datos de usuarios recibidos:", usersData);
         setUsers(usersData);
@@ -97,6 +103,12 @@ const UsersPage = () => {
   };
 
   const toggleUserStatus = async (id: number) => {
+    // Verificar si está intentando desactivarse a sí mismo
+    if (currentUser && currentUser.id === id) {
+      alert("No puedes desactivar tu propia cuenta. Esto te impediría acceder al sistema.");
+      return;
+    }
+    
     // Buscar el usuario actual y su estado
     const user = users.find(u => u.id === id);
     if (!user) return;
@@ -119,6 +131,12 @@ const UsersPage = () => {
   };
 
   const deleteUser = async (id: number) => {
+    // Verificar si está intentando eliminarse a sí mismo
+    if (currentUser && currentUser.id === id) {
+      alert("No puedes eliminar tu propia cuenta. Esto te impediría acceder al sistema.");
+      return;
+    }
+    
     if (window.confirm('¿Estás seguro de que deseas eliminar este usuario?')) {
       try {
         setIsLoading(true);
@@ -176,28 +194,42 @@ const UsersPage = () => {
       accessor: 'actions',
       cell: (user: User) => (
         <div className="flex flex-wrap gap-2">
+          {/* Deshabilitar el botón de toggle si es el usuario actual */}
           <button 
             onClick={() => toggleUserStatus(user.id!)}
-            className={`w-9 h-9 rounded flex items-center justify-center relative group ${user.active 
-              ? 'bg-orange-100 text-orange-700 hover:bg-orange-200' 
-              : 'bg-green-100 text-green-700 hover:bg-green-200'}`}
-            title={user.active ? "Desactivar usuario" : "Activar usuario"}
+            className={`w-9 h-9 rounded flex items-center justify-center relative group ${
+              user.active 
+                ? 'bg-orange-100 text-orange-700 hover:bg-orange-200' 
+                : 'bg-green-100 text-green-700 hover:bg-green-200'
+            } ${currentUser && currentUser.id === user.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+            title={
+              currentUser && currentUser.id === user.id 
+                ? "No puedes cambiar tu propio estado" 
+                : user.active ? "Desactivar usuario" : "Activar usuario"
+            }
+            disabled={currentUser && currentUser.id === user.id}
           >
             <i className={`fas ${user.active ? 'fa-ban' : 'fa-check'}`}></i>
             <span className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              {user.active ? 'Desactivar usuario' : 'Activar usuario'}
+              {currentUser && currentUser.id === user.id 
+                ? "No puedes cambiar tu propio estado" 
+                : user.active ? 'Desactivar usuario' : 'Activar usuario'}
             </span>
           </button>
-          <button 
-            onClick={() => deleteUser(user.id!)}
-            className="w-9 h-9 bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center justify-center relative group"
-            title="Eliminar usuario"
-          >
-            <i className="fas fa-trash"></i>
-            <span className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-              Eliminar usuario
-            </span>
-          </button>
+          
+          {/* Mostrar botón de eliminar solo si no es el usuario actual */}
+          {!(currentUser && currentUser.id === user.id) && (
+            <button 
+              onClick={() => deleteUser(user.id!)}
+              className="w-9 h-9 bg-red-100 text-red-700 rounded hover:bg-red-200 flex items-center justify-center relative group"
+              title="Eliminar usuario"
+            >
+              <i className="fas fa-trash"></i>
+              <span className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                Eliminar usuario
+              </span>
+            </button>
+          )}
         </div>
       )
     }
