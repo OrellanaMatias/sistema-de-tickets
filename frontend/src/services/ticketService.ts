@@ -48,7 +48,12 @@ export interface Ticket {
   updated_at?: string;
   creator?: {
     id: number;
-    username: string;
+    displayName: string;
+    email: string;
+  },
+  assignedTo?: {
+    id: number;
+    displayName: string;
     email: string;
   }
 }
@@ -69,10 +74,31 @@ const getAllTickets = async (): Promise<Ticket[]> => {
 const getUserTickets = async (): Promise<Ticket[]> => {
   try {
     const headers = getAuthHeader();
+    console.log('[DEBUG] getUserTickets - Token:', authService.getToken());
+    console.log('[DEBUG] getUserTickets - User:', authService.getUser());
+    console.log('[DEBUG] getUserTickets - Headers:', headers);
+    console.log('[DEBUG] getUserTickets - API URL:', `${API_URL}/tickets/user`);
+    
     const response = await axios.get<Ticket[]>(`${API_URL}/tickets/user`, { headers });
+    console.log('[DEBUG] getUserTickets - Response:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error al obtener tickets del usuario:', error);
+    
+    // Mostrar detalles adicionales del error para depuración
+    if (axios.isAxiosError(error)) {
+      console.error('- Código:', error.code);
+      console.error('- Mensaje:', error.message);
+      
+      if (error.response) {
+        console.error('- Estado:', error.response.status);
+        console.error('- Datos:', error.response.data);
+      } else if (error.request) {
+        console.error('- No se recibió respuesta del servidor');
+        console.error('- Request:', error.request);
+      }
+    }
+    
     // Si hay error, retornamos un array vacío para facilitar el manejo en los componentes
     return [];
   }

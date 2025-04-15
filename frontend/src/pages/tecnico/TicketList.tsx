@@ -167,7 +167,7 @@ const TecnicoTicketList = () => {
       {
         header: 'Usuario',
         accessor: 'creator',
-        cell: (ticket: Ticket) => ticket.creator?.username || 'Usuario'
+        cell: (ticket: Ticket) => ticket.creator?.displayName || 'Usuario'
       },
       {
         header: 'Estado',

@@ -42,6 +42,11 @@ const App = () => {
 
   // Efecto para verificar autenticación cuando el componente se monta
   useEffect(() => {
+    // Configurar cabeceras de Axios cuando la aplicación se inicia
+    authService.configureAxios();
+    console.log('[DEBUG] App.tsx - axios configurado inicialmente');
+    
+    // Verificar si hay un usuario autenticado
     const checkAuth = async () => {
       try {
         // Primero, intentamos obtener desde localStorage rápidamente

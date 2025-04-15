@@ -14,9 +14,17 @@ const Login = () => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-
+    
     try {
+      console.log('[DEBUG] Login - Iniciando sesión con email:', email);
       const user = await authService.login(email, password);
+      console.log('[DEBUG] Login - Usuario autenticado:', user);
+      console.log('[DEBUG] Login - Token:', authService.getToken());
+      console.log('[DEBUG] Login - UserRole:', authService.getUserRole());
+      
+      // Asegurar que axios esté configurado con el token correcto
+      authService.configureAxios();
+      
       console.log('Usuario autenticado:', user);
       
       // Redireccionar según el rol del usuario
@@ -115,28 +123,4 @@ const Login = () => {
                 Modo depuración
               </label>
               <div 
-                className={`w-10 h-5 flex items-center ${debugMode ? 'bg-green-500' : 'bg-gray-300'} rounded-full p-1 cursor-pointer`}
-                onClick={toggleDebugMode}
-              >
-                <div 
-                  className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-300 ease-in-out ${debugMode ? 'translate-x-5' : ''}`}
-                />
-              </div>
-            </div>
-          </div>
-        </form>
-        
-        {debugMode && (
-          <div className="mt-4 p-2 bg-yellow-100 border border-yellow-400 rounded text-xs text-yellow-800">
-            <p className="font-semibold">Modo de depuración activado</p>
-            <p>Puede iniciar sesión sin conexión al backend.</p>
-            <p>Usuario demo: admin@tickets.com</p>
-            <p>Contraseña: admin123</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default Login; 
+                className={`w-10 h-5 flex items-center ${debugMode ? 'bg-green-500' : 'bg-gray-300'} rounded-full p-1 cursor-pointer`

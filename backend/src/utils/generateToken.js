@@ -8,28 +8,36 @@ const jwt = require('jsonwebtoken');
  * @returns {string} - Token JWT generado
  */
 const generateToken = (payload, expiresIn = '24h') => {
+  console.log('[DEBUG] generateToken - Generando token para payload:', payload);
   // Asegurar que el secreto esté definido
   const secret = process.env.JWT_SECRET;
   if (!secret && process.env.NODE_ENV === 'production') {
-    console.error('JWT_SECRET no está definido en variables de entorno en producción');
+    console.error('[DEBUG] generateToken - JWT_SECRET no está definido en variables de entorno en producción');
     throw new Error('Error de configuración del servidor');
   }
 
   // Usar un secreto por defecto solo en desarrollo
   const jwtSecret = secret || 'secreto_jwt_desarrollo_local';
   
+  // Identificador único para el token
+  const tokenId = require('crypto').randomBytes(16).toString('hex');
+  console.log('[DEBUG] generateToken - ID del token:', tokenId);
+  
   // Añadir fecha de emisión y más opciones de seguridad
-  return jwt.sign(
-    payload,
-    jwtSecret,
-    { 
-      expiresIn,
-      issuer: 'ticketing-app',
-      audience: 'user',
-      notBefore: 0, // El token es válido inmediatamente
-      jwtid: require('crypto').randomBytes(16).toString('hex') // ID único para el token
-    }
-  );
+  const options = { 
+    expiresIn,
+    issuer: 'ticketing-app',
+    audience: 'user',
+    notBefore: 0, // El token es válido inmediatamente
+    jwtid: tokenId // ID único para el token
+  };
+  
+  console.log('[DEBUG] generateToken - Opciones del token:', options);
+  
+  const token = jwt.sign(payload, jwtSecret, options);
+  console.log('[DEBUG] generateToken - Token generado:', token.substring(0, 20) + '...');
+  
+  return token;
 };
 
-module.exports = generateToken; 
+module.exports = generateToken;

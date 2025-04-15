@@ -9,6 +9,13 @@ import ticketService from '../../services/ticketService';
 
 type Priority = 'baja' | 'media' | 'alta';
 type Category = 'hardware' | 'software' | 'red' | 'impresoras' | 'otro';
+type ToastType = 'success' | 'error' | 'warning' | 'info';
+
+interface Toast {
+  id: number;
+  message: string;
+  type: ToastType;
+}
 
 const CreateTicket: React.FC = () => {
   const [title, setTitle] = useState('');
@@ -21,7 +28,25 @@ const CreateTicket: React.FC = () => {
     description: ''
   });
   const [userRole, setUserRole] = useState<string>('');
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [showSuccessNotification, setShowSuccessNotification] = useState(false);
   const navigate = useNavigate();
+
+  // Mostrar una notificación toast
+  const showToast = (message: string, type: ToastType = 'info') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    
+    // Auto-eliminar después de 3 segundos
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id));
+    }, 3000);
+  };
+
+  // Eliminar un toast específico
+  const removeToast = (id: number) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -29,6 +54,11 @@ const CreateTicket: React.FC = () => {
         navigate('/login');
         return;
       }
+      
+      // Asegurarnos de que axios esté configurado con el token correcto
+      authService.configureAxios();
+      console.log('[DEBUG] CreateTicket - Token configurado:', authService.getToken());
+      console.log('[DEBUG] CreateTicket - Usuario actual:', authService.getUser());
       
       const role = authService.getUserRole();
       if (role) {
@@ -75,7 +105,7 @@ const CreateTicket: React.FC = () => {
     
     try {
       // Crear el ticket en la base de datos
-      await ticketService.createTicket({
+      const createdTicket = await ticketService.createTicket({
         title,
         description,
         priority,
@@ -85,22 +115,71 @@ const CreateTicket: React.FC = () => {
       
       setLoading(false);
       
-      // Redirigir según el rol del usuario
-      if (userRole === 'admin') {
-        navigate('/admin/tickets');
-      } else if (userRole === 'tecnico') {
-        navigate('/tecnico/tickets');
-      } else {
-        navigate('/usuario/tickets');
+      if (createdTicket) {
+        // Mostrar notificación de éxito
+        showToast(`Ticket "${title}" creado exitosamente`, 'success');
+        
+        // Esperar 1.5 segundos para que el usuario vea la notificación y luego redirigir
+        setShowSuccessNotification(true);
+        setTimeout(() => {
+          // Redirigir según el rol del usuario
+          if (userRole === 'admin') {
+            navigate('/admin/tickets');
+          } else if (userRole === 'tecnico') {
+            navigate('/tecnico/tickets');
+          } else {
+            navigate('/usuario/tickets');
+          }
+        }, 1500);
       }
     } catch (error) {
       console.error('Error al crear el ticket:', error);
+      showToast('Error al crear el ticket. Por favor, inténtalo de nuevo más tarde.', 'error');
       setLoading(false);
     }
   };
 
+  // Componente Toast para mostrar notificaciones
+  const Toast = ({ toast }: { toast: Toast }) => {
+    const { id, message, type } = toast;
+    
+    const bgColor = 
+      type === 'success' ? 'bg-green-500' : 
+      type === 'error' ? 'bg-red-500' :
+      type === 'warning' ? 'bg-amber-500' : 'bg-blue-500';
+      
+    const icon = 
+      type === 'success' ? 'fa-check-circle' : 
+      type === 'error' ? 'fa-exclamation-circle' :
+      type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle';
+    
+    return (
+      <div className={`${bgColor} text-white px-4 py-3 rounded-lg shadow-lg flex items-center justify-between`}>
+        <div className="flex items-center">
+          <i className={`fas ${icon} mr-3`}></i>
+          <span>{message}</span>
+        </div>
+        <button 
+          onClick={() => removeToast(id)} 
+          className="ml-4 text-white hover:text-gray-200 focus:outline-none"
+        >
+          <i className="fas fa-times"></i>
+        </button>
+      </div>
+    );
+  };
+
   const renderForm = () => (
     <div className="bg-white shadow-md rounded-lg p-6 max-w-3xl mx-auto">
+      {/* Contenedor de Toasts */}
+      <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 w-auto max-w-md">
+        {toasts.map(toast => (
+          <div key={toast.id} className="animate-fade-in-down">
+            <Toast toast={toast} />
+          </div>
+        ))}
+      </div>
+
       <h1 className="text-2xl font-semibold mb-6">Crear Nuevo Ticket</h1>
       
       <form onSubmit={handleSubmit}>
@@ -180,13 +259,18 @@ const CreateTicket: React.FC = () => {
           </button>
           <button
             type="submit"
-            disabled={loading}
-            className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            disabled={loading || showSuccessNotification}
+            className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ${(loading || showSuccessNotification) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {loading ? (
               <>
                 <span className="inline-block animate-spin mr-2">⟳</span>
                 Creando...
+              </>
+            ) : showSuccessNotification ? (
+              <>
+                <span className="inline-block mr-2">✓</span>
+                ¡Creado con éxito!
               </>
             ) : (
               'Crear Ticket'

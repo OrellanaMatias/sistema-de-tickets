@@ -48,7 +48,7 @@ const TecnicoDashboard = () => {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">Panel de Técnico</h1>
             <div className="flex items-center space-x-4">
-              <span className="text-gray-700">Bienvenido, {user.username}</span>
+              <span className="text-gray-700">Bienvenido, {user.displayName}</span>
               <button
                 onClick={handleLogout}
                 className="px-3 py-1 text-sm text-white bg-red-500 rounded hover:bg-red-600"

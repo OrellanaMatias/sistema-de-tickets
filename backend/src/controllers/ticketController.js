@@ -6,8 +6,8 @@ const getAllTickets = async (req, res) => {
   try {
     const tickets = await Ticket.findAll({
       include: [
-        { model: User, as: 'creator', attributes: ['id', 'username', 'email'] },
-        { model: User, as: 'assignedTo', attributes: ['id', 'username', 'email'] }
+        { model: User, as: 'creator', attributes: ['id', 'displayName', 'email'] },
+        { model: User, as: 'assignedTo', attributes: ['id', 'displayName', 'email'] }
       ],
       order: [['updatedAt', 'DESC']]
     });
@@ -20,14 +20,19 @@ const getAllTickets = async (req, res) => {
 
 const getUserTickets = async (req, res) => {
   try {
+    console.log('[DEBUG] getUserTickets - Usuario en la solicitud:', req.user);
     const userId = req.user.id;
+    console.log('[DEBUG] getUserTickets - ID de usuario:', userId);
+    
     const tickets = await Ticket.findAll({
       where: { userId },
       include: [
-        { model: User, as: 'assignedTo', attributes: ['id', 'username', 'email'] }
+        { model: User, as: 'assignedTo', attributes: ['id', 'displayName', 'email'] }
       ],
       order: [['updatedAt', 'DESC']]
     });
+    
+    console.log('[DEBUG] getUserTickets - Tickets encontrados:', tickets.length);
     return res.status(200).json(tickets);
   } catch (error) {
     console.error('Error al obtener tickets del usuario:', error);
@@ -38,21 +43,28 @@ const getUserTickets = async (req, res) => {
 const getTicketById = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('[DEBUG] getTicketById - Buscando ticket con ID:', id);
+    console.log('[DEBUG] getTicketById - Usuario en la solicitud:', req.user);
+    
     const ticket = await Ticket.findByPk(id, {
       include: [
-        { model: User, as: 'creator', attributes: ['id', 'username', 'email'] },
-        { model: User, as: 'assignedTo', attributes: ['id', 'username', 'email'] }
+        { model: User, as: 'creator', attributes: ['id', 'displayName', 'email'] },
+        { model: User, as: 'assignedTo', attributes: ['id', 'displayName', 'email'] }
       ]
     });
     
     if (!ticket) {
+      console.log(`[DEBUG] getTicketById - Ticket con ID ${id} no encontrado`);
       return res.status(404).json({ message: `Ticket con ID ${id} no encontrado` });
     }
     
+    // Si el usuario es normal, solo puede ver sus propios tickets
     if (req.user.role === 'usuario' && ticket.userId !== req.user.id) {
+      console.log(`[DEBUG] getTicketById - Acceso denegado al usuario ${req.user.id} para ticket ${id}`);
       return res.status(403).json({ message: 'No tienes permisos para ver este ticket' });
     }
     
+    console.log('[DEBUG] getTicketById - Ticket encontrado:', ticket.id);
     return res.status(200).json(ticket);
   } catch (error) {
     console.error(`Error al obtener ticket ${req.params.id}:`, error);
@@ -65,8 +77,17 @@ const createTicket = async (req, res) => {
     const { title, description, priority, category } = req.body;
     const userId = req.user.id;
     
+    console.log('[DEBUG] createTicket - Datos recibidos:', { title, description, priority, category });
+    console.log('[DEBUG] createTicket - Usuario creador:', { id: userId, role: req.user.role });
+    
     if (!title || !description) {
       return res.status(400).json({ message: 'Título y descripción son obligatorios' });
+    }
+    
+    // Asegurarnos de que userId es un número válido
+    if (!userId || isNaN(userId)) {
+      console.error('[DEBUG] createTicket - ID de usuario inválido:', userId);
+      return res.status(400).json({ message: 'ID de usuario inválido', error: 'Invalid userId' });
     }
     
     const newTicket = await Ticket.create({
@@ -78,7 +99,20 @@ const createTicket = async (req, res) => {
       userId
     });
     
-    return res.status(201).json(newTicket);
+    console.log('[DEBUG] createTicket - Ticket creado:', { 
+      id: newTicket.id, 
+      title: newTicket.title,
+      userId: newTicket.userId 
+    });
+    
+    // Cargar ticket con sus relaciones para devolverlo completo
+    const ticketWithRelations = await Ticket.findByPk(newTicket.id, {
+      include: [
+        { model: User, as: 'creator', attributes: ['id', 'displayName', 'email'] }
+      ]
+    });
+    
+    return res.status(201).json(ticketWithRelations);
   } catch (error) {
     console.error('Error al crear ticket:', error);
     return res.status(500).json({ message: 'Error al crear ticket', error: error.message });

@@ -218,14 +218,14 @@ const TecnicoDashboard = () => {
     {
       header: 'Usuario',
       accessor: 'creator',
-      cell: (ticket: Ticket) => ticket.creator?.username || 'Usuario'
+      cell: (ticket: Ticket) => ticket.creator?.displayName || 'Usuario'
     },
     {
       header: 'Técnico Asignado',
       accessor: 'assignedToId',
       cell: (ticket: Ticket) => (
         ticket.assignedToId ? 
-        (recentTickets.find(t => t.assignedToId === ticket.assignedToId)?.creator?.username || 'Técnico') : 
+        (recentTickets.find(t => t.assignedToId === ticket.assignedToId)?.creator?.displayName || 'Técnico') : 
         <span className="text-gray-400 italic">Sin asignar</span>
       ),
       hideOnMobile: true

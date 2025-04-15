@@ -32,7 +32,7 @@ console.log('API URL configurada a:', API_URL);
 
 interface User {
   id: number;
-  username: string; // Nombre para mostrar
+  displayName: string; // Nombre para mostrar
   email: string;    // Email para iniciar sesión
   role: 'admin' | 'tecnico' | 'usuario';
 }
@@ -45,7 +45,7 @@ interface LoginResponse {
 // Valores predeterminados para modo depuración
 const DEBUG_ADMIN_USER: User = {
   id: 0,
-  username: 'Admin (Temporal)',
+  displayName: 'Admin (Temporal)',
   email: '',
   role: 'admin'
 };
@@ -179,11 +179,17 @@ const getUser = (): User | null => {
 // Configurar axios para incluir token en todas las peticiones
 const configureAxios = (): void => {
   const token = getToken();
+  console.log('[DEBUG] configureAxios - Token:', token);
+  
   if (token) {
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    console.log('[DEBUG] configureAxios - Authorization header configurado');
   } else {
     delete axios.defaults.headers.common['Authorization'];
+    console.log('[DEBUG] configureAxios - Authorization header eliminado');
   }
+  
+  console.log('[DEBUG] configureAxios - Headers actuales:', axios.defaults.headers.common);
 };
 
 // Iniciar sesión
@@ -342,7 +348,7 @@ const register = async (username: string, email: string, password: string): Prom
       console.log('[authService] Modo debug: simulando registro exitoso');
       return {
         id: 999,
-        username,
+        displayName: username,
         email,
         role: 'usuario'
       };
@@ -459,23 +465,26 @@ const getCurrentUser = async () => {
     
     // Primero intentamos obtener del localStorage
     const storedUser = getUser();
-    if (storedUser) {
+    const storedToken = getToken();
+    console.log('[DEBUG] getCurrentUser - Stored user:', storedUser);
+    console.log('[DEBUG] getCurrentUser - Token:', storedToken);
+    
+    if (storedUser && storedToken) {
+      // Asegurarnos de que axios esté configurado con el token correcto
+      configureAxios();
+      
       return storedUser;
     }
     
-    // Si no hay usuario en localStorage pero hay token, intentamos obtener el perfil
-    const token = getToken();
-    if (token) {
+    // Si no tenemos un usuario almacenado pero hay un token, intentamos obtener el perfil
+    if (storedToken) {
       try {
-        // Intentar obtener el perfil del usuario desde el servidor
-        const profile = await getProfile();
-        if (profile) {
-          // Actualizar la información del usuario en localStorage
-          setUser(profile);
-          return profile;
-        }
+        console.log('[DEBUG] getCurrentUser - Intentando obtener perfil con token existente');
+        // Hacer una solicitud para obtener el perfil del usuario
+        const user = await getProfile();
+        return user;
       } catch (profileError) {
-        console.error('Error obteniendo perfil del usuario:', profileError);
+        console.error('Error al obtener perfil del usuario:', profileError);
         
         // Si hay error de conexión, activar modo debug
         if (axios.isAxiosError(profileError) && profileError.message.includes('Network Error')) {
@@ -484,21 +493,21 @@ const getCurrentUser = async () => {
           return DEBUG_ADMIN_USER;
         }
       }
+    }
+    
+    // Si no pudimos obtener el perfil pero tenemos un userRole, creamos un objeto usuario básico
+    const userRole = localStorage.getItem('userRole');
+    if (userRole && (userRole === 'admin' || userRole === 'tecnico' || userRole === 'usuario')) {
+      const user: User = {
+        id: 1,
+        displayName: userRole === 'admin' ? 'Administrator' : (userRole === 'tecnico' ? 'Technician' : 'User'),
+        email: userRole === 'admin' ? 'admin@tickets.com' : (userRole === 'tecnico' ? 'tecnico@tickets.com' : 'user@tickets.com'),
+        role: userRole as 'admin' | 'tecnico' | 'usuario'
+      };
       
-      // Si no pudimos obtener el perfil pero tenemos un userRole, creamos un objeto usuario básico
-      const userRole = localStorage.getItem('userRole');
-      if (userRole && (userRole === 'admin' || userRole === 'tecnico' || userRole === 'usuario')) {
-        const user: User = {
-          id: 1,
-          username: userRole === 'admin' ? 'Administrator' : (userRole === 'tecnico' ? 'Technician' : 'User'),
-          email: userRole === 'admin' ? 'admin@tickets.com' : (userRole === 'tecnico' ? 'tecnico@tickets.com' : 'user@tickets.com'),
-          role: userRole as 'admin' | 'tecnico' | 'usuario'
-        };
-        
-        // Guardar este usuario básico en localStorage
-        setUser(user);
-        return user;
-      }
+      // Guardar este usuario básico en localStorage
+      setUser(user);
+      return user;
     }
     
     // Si llegamos aquí, no hay usuario autenticado

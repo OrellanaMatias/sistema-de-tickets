@@ -6,7 +6,7 @@ import authService from '../services/authService';
 const Register: React.FC = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    username: '',
+    displayName: '',
     email: '',
     password: '',
     confirmPassword: ''
@@ -17,8 +17,8 @@ const Register: React.FC = () => {
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
     
-    if (!formData.username.trim()) {
-      newErrors.username = 'El nombre de usuario es requerido';
+    if (!formData.displayName.trim()) {
+      newErrors.displayName = 'El nombre de usuario es requerido';
     }
     
     if (!formData.email.trim()) {
@@ -57,7 +57,7 @@ const Register: React.FC = () => {
     setLoading(true);
     try {
       await authService.register(
-        formData.username,
+        formData.displayName,
         formData.email,
         formData.password
       );
@@ -85,18 +85,18 @@ const Register: React.FC = () => {
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="username" className="block text-gray-700 text-sm font-medium mb-1">
-              Nombre de usuario
+            <label className="block text-gray-700 text-sm font-medium mb-1" htmlFor="displayName">
+              Nombre de usuario <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
-              id="username"
-              name="username"
-              value={formData.username}
+              id="displayName"
+              name="displayName"
+              value={formData.displayName}
               onChange={handleChange}
-              className={`w-full px-3 py-2 border ${errors.username ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500`}
+              className={`w-full px-3 py-2 border ${errors.displayName ? 'border-red-500' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500`}
             />
-            {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
+            {errors.displayName && <p className="text-red-500 text-xs mt-1">{errors.displayName}</p>}
           </div>
           
           <div>

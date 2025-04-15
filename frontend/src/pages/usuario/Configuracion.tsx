@@ -4,7 +4,7 @@ import authService from '../../services/authService';
 
 const Configuracion = () => {
   const [userData, setUserData] = useState({
-    username: '',
+    displayName: '',
     email: '',
     currentPassword: '',
     newPassword: '',
@@ -22,7 +22,7 @@ const Configuracion = () => {
         if (user) {
           setUserData({
             ...userData,
-            username: user.username || '',
+            displayName: user.displayName || '',
             email: user.email || ''
           });
         }
@@ -162,14 +162,14 @@ const Configuracion = () => {
             {activeTab === 'perfil' && (
               <form onSubmit={handleUpdateProfile}>
                 <div className="mb-6">
-                  <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="username">
+                  <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="displayName">
                     Nombre <span className="font-normal text-gray-500 text-xs">(Nombre que se mostrará en la plataforma)</span>
                   </label>
                   <input
-                    id="username"
-                    name="username"
+                    id="displayName"
+                    name="displayName"
                     type="text"
-                    value={userData.username}
+                    value={userData.displayName}
                     onChange={handleInputChange}
                     className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                   />

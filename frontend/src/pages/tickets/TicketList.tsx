@@ -19,6 +19,11 @@ const TicketList: React.FC = () => {
       const role = authService.getUserRole();
       setUserRole(role);
       
+      // Asegurarnos de que axios esté configurado con el token correcto
+      authService.configureAxios();
+      console.log('[DEBUG] TicketList - Token configurado:', authService.getToken());
+      console.log('[DEBUG] TicketList - Usuario actual:', authService.getUser());
+      
       setLoading(true);
       try {
         let fetchedTickets: Ticket[] = [];
@@ -32,6 +37,7 @@ const TicketList: React.FC = () => {
           fetchedTickets = await ticketService.getUserTickets();
         }
         
+        console.log('[DEBUG] TicketList - Tickets obtenidos:', fetchedTickets);
         setTickets(fetchedTickets);
       } catch (error) {
         console.error('Error al cargar tickets:', error);
